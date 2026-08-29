@@ -3,30 +3,47 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha256"
+	"flag"
 	"fmt"
 	"io"
 	"os"
 )
 
 func main() {
-	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: go run ./tools/buildproof FILE [FILE ...]")
+	flags := flag.NewFlagSet("buildproof", flag.ContinueOnError)
+	flags.SetOutput(os.Stderr)
+	output := flags.String("output", "", "also write the checksum list to this file")
+	if err := flags.Parse(os.Args[1:]); err != nil {
 		os.Exit(2)
 	}
-	hashes := make([][sha256.Size]byte, 0, len(os.Args)-1)
-	for _, path := range os.Args[1:] {
+	paths := flags.Args()
+	if len(paths) == 0 {
+		fmt.Fprintln(os.Stderr, "usage: go run ./tools/buildproof [-output FILE] FILE [FILE ...]")
+		os.Exit(2)
+	}
+	hashes := make([][sha256.Size]byte, 0, len(paths))
+	var receipt bytes.Buffer
+	for _, path := range paths {
 		hash, err := hashFile(path)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "buildproof: %s: %v\n", path, err)
 			os.Exit(1)
 		}
 		hashes = append(hashes, hash)
-		fmt.Printf("%x  %s\n", hash, path)
+		fmt.Fprintf(&receipt, "%x  %s\n", hash, path)
 	}
+	_, _ = os.Stdout.Write(receipt.Bytes())
 	if len(hashes) == 2 && hashes[0] != hashes[1] {
 		fmt.Fprintln(os.Stderr, "buildproof: files are not byte-identical")
 		os.Exit(1)
+	}
+	if *output != "" {
+		if err := os.WriteFile(*output, receipt.Bytes(), 0o644); err != nil {
+			fmt.Fprintf(os.Stderr, "buildproof: write receipt: %v\n", err)
+			os.Exit(1)
+		}
 	}
 }
 

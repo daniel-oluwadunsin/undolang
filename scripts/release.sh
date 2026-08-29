@@ -21,4 +21,5 @@ build_target darwin amd64 ""
 build_target darwin arm64 ""
 build_target windows amd64 ".exe"
 
-go run ./tools/buildproof "$dist_dir"/undo_0.1.0_*
+cd "$dist_dir"
+go run "$repo_dir/tools/buildproof" -output SHA256SUMS undo_0.1.0_*
