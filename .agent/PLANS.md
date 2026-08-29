@@ -16,7 +16,7 @@ Codex must:
 
 ## Current Phase
 
-Phases 0-5 complete. Phase 6 is not authorized by this plan.
+Phase 6 transaction execution, rollback, and crash recovery.
 
 ## Completed
 
@@ -29,11 +29,15 @@ Phases 0-5 complete. Phase 6 is not authorized by this plan.
 
 ## In Progress
 
-None.
+- Extend state and journal replay so durable records contain every fact required to classify and reverse an interrupted operation.
+- Add single-transaction execution, source-order program orchestration, journal-driven rollback, recovery, and real-process crash tests.
 
 ## Next
 
-Phase 6 (not authorized in this run): production transaction runner, rollback orchestration, and recovery.
+- Phase 7: complete CLI, agent JSON contract, history/inspect, and local installers.
+- Phase 8: static newsprint marketing/docs and validated examples.
+- Phase 9: dependency/reproducibility/release receipts.
+- Phase 10: adversarial audit and final acceptance gates.
 
 ## Decisions Made During Implementation
 
@@ -45,6 +49,10 @@ Phase 6 (not authorized in this run): production transaction runner, rollback or
 - Empty `contains` needles are semantic errors.
 - Symlink copy is rejected in v1; symlink move/delete operate on the link entry.
 - JSON uses Go 1.27 `encoding/json/v2`; transaction IDs use standard-library `uuid.NewV7`.
+- The user authorized continuous implementation through Phase 10 with phase-specific verification and commits.
+- Recovery classifies each prepared operation against durable before/after descriptors. Any state matching neither descriptor is ambiguous and fails closed with backups retained.
+- A torn final journal frame may be truncated only to a fully validated prefix; complete-frame corruption is never repaired.
+- Mutating JSON/noninteractive CLI use requires `--yes`; interactive confirmation is added in Phase 7.
 
 ## Open Questions
 
