@@ -1,5 +1,7 @@
 # UndoLang
 
+**Version 0.1.0 · Zero Dependency Hackathon, Track F (Open/Wildcard)**
+
 UndoLang is a Go 1.27, standard-library-only filesystem transaction runtime and small `.undo` DSL. It makes multi-file automation inspectable before execution and recoverable after known failure or process interruption.
 
 ```text
@@ -17,6 +19,8 @@ go build -trimpath -buildvcs=false -o undo ./cmd/undo
 ```
 
 The resulting binary has no runtime package, database, daemon, cloud, API-key, or environment-variable requirement. `NO_COLOR` is optional. The module contains no `require` block and no `go.sum`.
+
+For a pinned offline release build, run `./scripts/build.sh`. Release maintainers can use `./scripts/release.sh` to cross-build the documented targets and print their SHA-256 hashes. Generated binaries stay under ignored `dist/`.
 
 Local convenience installers are available as `./install.sh` for macOS/Linux and `./install.ps1` for Windows. They copy an existing local binary or build the local source tree; they do not download packages or require administrator access.
 
@@ -72,6 +76,11 @@ Noninteractive and JSON mutation requires `--yes`; `--json` alone never grants a
 - [Support matrix](docs/SUPPORT_MATRIX.md)
 - [Examples](examples/)
 - [Static marketing/docs site](marketing/index.html)
+- [Standard-library substitutions](STDLIB.md)
+
+## Why Track F
+
+UndoLang combines a purpose-built language, capability sandbox, streaming file algorithms, binary recovery journal, and crash-restartable rollback—the sort of local systems runtime normally assembled from a CLI framework, parser generator, UUID package, database, transaction library, and file helpers. Track F fits because the product crosses parser, storage, developer-tooling, and security boundaries while demonstrating that Go 1.27's standard library is sufficient. The detailed substitutions are recorded in [STDLIB.md](STDLIB.md).
 
 ## Current limitations
 
@@ -89,6 +98,8 @@ GOPROXY=off go test ./...
 GOPROXY=off go vet ./...
 GOPROXY=off go test -race ./...
 go list -m all
+./scripts/deps-proof.sh
+./scripts/repro-build.sh
 ```
 
 See `docs/IMPLEMENTATION_REPORT.md` for final evidence and platform qualifications.
