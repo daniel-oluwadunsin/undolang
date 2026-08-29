@@ -1,5 +1,5 @@
 UndoLang 0.1.0 reproducible-build proof
-Captured: 2026-08-29, macOS arm64
+Captured: 2026-08-29, macOS arm64 (fresh run during final readiness audit)
 Toolchain: go version go1.27.0 darwin/arm64
 Environment: CGO_ENABLED=0, GOTOOLCHAIN=go1.27.0, GOPROXY=off
 Command (run twice): go build -trimpath -buildvcs=false -o <temporary-output> ./cmd/undo

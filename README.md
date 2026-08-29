@@ -77,6 +77,7 @@ Noninteractive and JSON mutation requires `--yes`; `--json` alone never grants a
 - [Examples](examples/)
 - [Static marketing/docs site](marketing/index.html)
 - [Standard-library substitutions](STDLIB.md)
+- [Five-minute demo runbook](docs/DEMO_RUNBOOK.md)
 
 ## Why Track F
 

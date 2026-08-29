@@ -1,5 +1,9 @@
 # UndoLang Final Acceptance Checklist
 
+Final local audit: 2026-08-29 on macOS arm64 with Go 1.27.0. Repository
+criteria below are green unless explicitly marked as an external submission
+task.
+
 ## Hackathon dependency compliance
 
 - [x] Go 1.27 pinned/documented.
@@ -118,4 +122,4 @@
 - [x] reproducible-build.txt current.
 - [x] `.zero-dep.toml` Track F.
 - [x] public license.
-- [ ] Five-minute demo video recorded and published (external submission task; the tested demo script is ready in `SUBMISSION_AND_DEMO.md`).
+- [ ] Five-minute demo video recorded and published (external submission task; the copyable live procedure is [`DEMO_RUNBOOK.md`](DEMO_RUNBOOK.md)).

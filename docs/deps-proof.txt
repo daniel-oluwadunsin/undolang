@@ -1,9 +1,5 @@
-Canonical dependency evidence: ../deps-proof.txt
+Canonical dependency evidence: [`../deps-proof.txt`](../deps-proof.txt)
 
-Toolchain: go version go1.27.0 darwin/arm64
-Module list: github.com/daniel-oluwadunsin/undolang
-go.sum: absent
-require directives: none
-GOPROXY=off go test ./...: PASS
-CGO_ENABLED=0 GOPROXY=off go build -trimpath -buildvcs=false ./cmd/undo: PASS
-Result: PASS — no third-party module or import.
+The linked receipt was regenerated from the current checkout on 2026-08-29 with
+Go 1.27.0 on macOS arm64. It records the one-line `go list -m all` output,
+the empty manifest proof, the offline test gate, and the offline canonical build.

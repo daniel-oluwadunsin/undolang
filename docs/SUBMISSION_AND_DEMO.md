@@ -2,6 +2,10 @@
 
 This plan must use only behavior that genuinely exists in the final build.
 
+The copyable five-minute operator sequence is in
+[`DEMO_RUNBOOK.md`](DEMO_RUNBOOK.md). This document remains the submission
+outline and checklist; the runbook is the canonical live-demo procedure.
+
 ## 1. Submission positioning
 
 **Track:** F — Open / Wildcard
@@ -106,7 +110,7 @@ Show the filesystem is in an interrupted transaction state and `.undo` contains 
 Then:
 
 ```bash
-undo recover --root ./demo-app
+undo recover --root ./demo-app --yes
 ```
 
 Show journal validation and reverse rollback.
