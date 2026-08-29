@@ -36,7 +36,7 @@ Expected outcome: Codex has fully ingested the repository rules and created a co
 ## Prompt 1 — Go bootstrap + lexer + parser + AST + semantic validator
 
 ```text
-Proceed with Phase 1 only: establish the Go 1.27 project and implement the complete UndoLang language front-end.
+Proceed with Phase 1: establish the Go 1.27 project and implement the complete UndoLang language front-end.
 
 First reread AGENTS.md, PROGRAM_EXECUTION_MODEL.md, DSL_LANGUAGE_SPEC.md, relevant TECHNICAL_SPEC.md sections, SECURITY_AND_EDGE_CASES.md parser cases, TEST_PLAN.md sections 3-5, and the current ExecPlan. Update the ExecPlan before coding if needed.
 
@@ -84,7 +84,7 @@ Update the ExecPlan with actual results. Report files changed, grammar implement
 ## Prompt 2 — Path capabilities, transaction root, reserved state, safe condition reads
 
 ```text
-Proceed with Phase 2 only: implement the filesystem capability/path security layer and non-mutating condition evaluation.
+Proceed with Phase 2: implement the filesystem capability/path security layer and non-mutating condition evaluation.
 
 Reread AGENTS.md, PROGRAM_EXECUTION_MODEL.md, PRD path requirements, TECHNICAL_SPEC sections 4 and 13, DSL_LANGUAGE_SPEC path semantics, SECURITY_AND_EDGE_CASES sections 2-5 and platform path cases, TEST_PLAN path/condition sections, and update/create the Phase 2 ExecPlan.
 
@@ -110,7 +110,7 @@ Important: do not rely on filepath prefix checks as the security boundary. filep
 
 Add tests for relative/absolute/allowed/denied paths, script outside root, .. escapes, symlink escapes, reserved state, large-file contains/hash, Windows-oriented lexical path cases where platform allows.
 
-Run all gates with GOPROXY=off and report. Stop after Phase 2.
+Run all gates with GOPROXY=off and report.
 ```
 
 ---
@@ -118,7 +118,7 @@ Run all gates with GOPROXY=off and report. Stop after Phase 2.
 ## Prompt 3 — Planner and `check` / `plan` CLI, human + JSON contracts
 
 ```text
-Proceed with Phase 3 only: build the immutable execution planner and production-quality non-mutating CLI flows.
+Proceed with Phase 3: build the immutable execution planner and production-quality non-mutating CLI flows.
 
 Reread AGENTS.md, PROGRAM_EXECUTION_MODEL.md, PRD planning/CLI/AI-agent sections, TECHNICAL_SPEC plan/CLI/JSON/error sections, SECURITY_AND_EDGE_CASES conflict rules, TEST_PLAN planner/CLI/agent sections, and update the Phase 3 ExecPlan.
 
@@ -149,7 +149,7 @@ Do NOT implement mutations yet. Do not let `run` pretend to work; it should clea
 
 Test that check/plan make no target mutations by snapshot/hash fixtures before/after. Test JSON as JSON, not string snapshots only. Test agent schema completeness.
 
-Run full GOPROXY=off gates and report. Stop after Phase 3.
+Run full GOPROXY=off gates and report.
 ```
 
 ---
@@ -157,7 +157,7 @@ Run full GOPROXY=off gates and report. Stop after Phase 3.
 ## Prompt 4 — Journal, state directory, lock, transaction state machine foundations
 
 ```text
-Proceed with Phase 4 only: implement the durable state layer and journal, without yet wiring all filesystem mutation operations.
+Proceed with Phase 4: implement the durable state layer and journal, without yet wiring all filesystem mutation operations.
 
 Reread AGENTS.md, TECHNICAL_SPEC sections 5-10 and 14-18, SECURITY_AND_EDGE_CASES journal/recovery/state sections, TEST_PLAN journal tests, STDLIB_PLAN, and update the Phase 4 ExecPlan.
 
@@ -180,7 +180,7 @@ Do not add a database. Do not add a package. Do not implement a fake journal in 
 
 Tests must cover every corruption/torn-record case in TEST_PLAN and fuzz the decoder for panic/allocation safety where practical.
 
-Run all gates and report actual journal format/invariants. Stop after Phase 4.
+Run all gates and report actual journal format/invariants.
 ```
 
 ---
@@ -188,7 +188,7 @@ Run all gates and report actual journal format/invariants. Stop after Phase 4.
 ## Prompt 5 — Real filesystem operations + inverse metadata + streaming algorithms
 
 ```text
-Proceed with Phase 5 only: implement the real filesystem mutation primitives and their reversible metadata, using the path capability layer and journal-safe design.
+Proceed with Phase 5: implement the real filesystem mutation primitives and their reversible metadata, using the path capability layer and journal-safe design.
 
 Reread AGENTS.md, DSL_LANGUAGE_SPEC operation semantics, TECHNICAL_SPEC operation/backup/stream/symlink sections, SECURITY_AND_EDGE_CASES operation/file-type/large-file/cross-device sections, TEST_PLAN operation tests, and update the Phase 5 ExecPlan.
 
@@ -216,7 +216,7 @@ Do not wire a production demo/failure flag. These operations must be real.
 
 Tests: all operation integration cases, rollback primitives, huge/chunk-boundary files, directory trees, overwrite restoration, symlink policy, special files where platform supports creating them.
 
-Run all gates and report. Stop after Phase 5.
+Run all gates and report.
 ```
 
 ---
@@ -224,7 +224,7 @@ Run all gates and report. Stop after Phase 5.
 ## Prompt 6 — Transaction execution, rollback, postconditions, real crash recovery
 
 ```text
-Proceed with Phase 6 only: wire the complete transaction runtime, rollback, and crash recovery. This is the core correctness phase; favor safety over feature breadth.
+Proceed with Phase 6: wire the complete transaction runtime, rollback, and crash recovery. This is the core correctness phase; favor safety over feature breadth.
 
 Reread AGENTS.md, PROGRAM_EXECUTION_MODEL.md, PRD transaction/recovery acceptance criteria, TECHNICAL_SPEC sections 6-16, SECURITY_AND_EDGE_CASES recovery/TOCTOU/disk-full sections, TEST_PLAN transaction and crash sections, and update the Phase 6 ExecPlan in detail before coding.
 
@@ -254,7 +254,7 @@ Create real crash tests using subprocesses/test-only helper mechanisms and actua
 
 Also test operation failure and failed postcondition rollback.
 
-Run full tests, race tests where supported, vet, module proof. Report exact crash tests passed and any platform-specific limitations. Stop after Phase 6.
+Run full tests, race tests where supported, vet, module proof. Report exact crash tests passed and any platform-specific limitations.
 ```
 
 ---
@@ -262,7 +262,7 @@ Run full tests, race tests where supported, vet, module proof. Report exact cras
 ## Prompt 7 — CLI completion, history/inspect, AI-agent ergonomics, installation behavior
 
 ```text
-Proceed with Phase 7 only: finish the CLI as a real installable product and harden the machine-readable agent contract.
+Proceed with Phase 7: finish the CLI as a real installable product and harden the machine-readable agent contract.
 
 Reread AGENTS.md, PROGRAM_EXECUTION_MODEL.md, PRD AI/CLI/distribution sections, TECHNICAL_SPEC CLI/JSON/history sections, ENVIRONMENT_AND_RELEASE.md, TEST_PLAN CLI/agent sections, and update the ExecPlan.
 
@@ -288,7 +288,7 @@ Do not add MCP yet. CLI + JSON is the universal integration surface.
 
 Add black-box tests against compiled binary. Ensure any .undo file path works and root remains independent from script location.
 
-Run all gates and report. Stop after Phase 7.
+Run all gates and report.
 ```
 
 ---
@@ -296,7 +296,7 @@ Run all gates and report. Stop after Phase 7.
 ## Prompt 8 — Static marketing site and full documentation
 
 ```text
-Proceed with Phase 8 only: build the zero-dependency static landing page/docs and synchronize all public docs with real implemented behavior.
+Proceed with Phase 8: build the zero-dependency static landing page/docs and synchronize all public docs with real implemented behavior.
 
 Read MARKETING_AND_DOCS_SPEC.md, PRD marketing requirements, current README/docs, actual CLI help/schema, and AGENTS.md. Update the ExecPlan.
 
@@ -315,7 +315,7 @@ Implement:
 
 Audit every marketing claim against tests/code. Run relevant CLI tests again after docs examples are added, and if practical add tests that parse example .undo files from docs/examples.
 
-Report pages created and stop after Phase 8.
+Report pages created
 ```
 
 ---
@@ -323,7 +323,7 @@ Report pages created and stop after Phase 8.
 ## Prompt 9 — Zero-dependency proof, reproducible build, release artifacts
 
 ```text
-Proceed with Phase 9 only: harden build/release reproducibility and produce the hackathon receipts.
+Proceed with Phase 9: harden build/release reproducibility and produce the hackathon receipts.
 
 Reread HACKATHON_CONTEXT.md, STDLIB_PLAN.md, ENVIRONMENT_AND_RELEASE.md, TECHNICAL_SPEC build section, TEST_PLAN reproducibility/dependency sections, and AGENTS.md. Update the ExecPlan.
 
@@ -342,7 +342,7 @@ Tasks:
 
 Do not claim +5 until byte-identical output is actually proven.
 
-Run full tests after build changes. Report exact evidence. Stop after Phase 9.
+Run full tests after build changes. Report exact evidence.
 ```
 
 ---
@@ -350,7 +350,7 @@ Run full tests after build changes. Report exact evidence. Stop after Phase 9.
 ## Prompt 10 — Adversarial audit, edge cases, scale, platform honesty
 
 ```text
-Proceed with Phase 10 only: act as a hostile senior systems/code-review engineer and try to break UndoLang.
+Proceed with Phase 10: act as a hostile senior systems/code-review engineer and try to break UndoLang.
 
 Read SECURITY_AND_EDGE_CASES.md and TEST_PLAN in full, then inspect actual implementation. Create/update the Phase 10 ExecPlan before modifications.
 
@@ -378,7 +378,7 @@ For every issue found: fix it if within scope, add a regression test, and update
 
 Do not hide limitations. Distinguish tested support from cross-compiled-only targets.
 
-Run full gates at the end and provide a concise audit report. Stop after Phase 10.
+Run full gates at the end and provide a concise audit report.
 ```
 
 ---
