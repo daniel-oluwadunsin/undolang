@@ -1,6 +1,7 @@
 package streamutil
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -59,4 +60,81 @@ func SHA256(r io.Reader) (string, int64, error) {
 		return "", n, err
 	}
 	return hex.EncodeToString(h.Sum(nil)), n, nil
+}
+
+func CopyHash(dst io.Writer, src io.Reader) (string, int64, error) {
+	h := sha256.New()
+	n, err := io.CopyBuffer(io.MultiWriter(dst, h), src, make([]byte, BufferSize))
+	if err != nil {
+		return "", n, err
+	}
+	return hex.EncodeToString(h.Sum(nil)), n, nil
+}
+
+func ReplaceAll(dst io.Writer, src io.Reader, old, replacement []byte) (int64, int64, error) {
+	if len(old) == 0 {
+		return 0, 0, ErrEmptyNeedle
+	}
+	chunk := make([]byte, BufferSize)
+	carry := make([]byte, 0, len(old)-1)
+	var matches, written int64
+	for {
+		n, readErr := src.Read(chunk)
+		data := make([]byte, 0, len(carry)+n)
+		data = append(data, carry...)
+		data = append(data, chunk[:n]...)
+		for {
+			index := bytes.Index(data, old)
+			if index < 0 {
+				break
+			}
+			count, err := writeParts(dst, data[:index], replacement)
+			written += count
+			if err != nil {
+				return matches, written, err
+			}
+			matches++
+			data = data[index+len(old):]
+		}
+		if errors.Is(readErr, io.EOF) {
+			count, err := writeParts(dst, data)
+			written += count
+			return matches, written, err
+		}
+		if readErr != nil {
+			return matches, written, readErr
+		}
+		keep := len(old) - 1
+		if keep > len(data) {
+			keep = len(data)
+		}
+		flush := len(data) - keep
+		count, err := writeParts(dst, data[:flush])
+		written += count
+		if err != nil {
+			return matches, written, err
+		}
+		carry = append(carry[:0], data[flush:]...)
+		if n == 0 {
+			return matches, written, io.ErrNoProgress
+		}
+	}
+}
+
+func writeParts(dst io.Writer, parts ...[]byte) (int64, error) {
+	var total int64
+	for _, part := range parts {
+		for len(part) > 0 {
+			n, err := dst.Write(part)
+			total += int64(n)
+			if err != nil {
+				return total, err
+			}
+			if n == 0 {
+				return total, io.ErrShortWrite
+			}
+			part = part[n:]
+		}
+	}
+	return total, nil
 }
