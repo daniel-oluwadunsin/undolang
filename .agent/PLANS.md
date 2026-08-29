@@ -16,7 +16,7 @@ Codex must:
 
 ## Current Phase
 
-Phase 9 zero-dependency proof, reproducible release evidence, and cross-build tooling.
+Phase 10 adversarial security/correctness audit and final acceptance gates.
 
 ## Completed
 
@@ -29,14 +29,14 @@ Phase 9 zero-dependency proof, reproducible release evidence, and cross-build to
 - Phase 6: crash-classifiable prepared metadata, strict journal state replay, source-order execution, post-lock revalidation, postconditions, journal-driven reverse rollback, idempotent recovery, real `run`/`recover`, and nine real-process kill/recover checkpoints.
 - Phase 7: complete help and approval UX, whole-program JSON results, stable exit classes, history/inspect, expanded schema/capabilities, compiled-binary contract tests, and local shell/PowerShell installers.
 - Phase 8: static newsprint landing/docs site, canonical runtime guides, five parser-validated examples, downloadable agent context, responsive navigation, and automated snippet/link/command correctness tests.
+- Phase 9: version 0.1.0, MIT license, Track F metadata, 15-entry stdlib ledger, dependency receipts, byte-identical build proof, local installers, and five-target cross-build/checksum tooling.
 
 ## In Progress
 
-- Produce dependency, reproducibility, and cross-build receipts without introducing build dependencies.
+- Audit hostile inputs, races, interrupted recovery, resource bounds, output disclosure, platform gaps, and all final acceptance evidence.
 
 ## Next
 
-- Phase 9: dependency/reproducibility/release receipts.
 - Phase 10: adversarial audit and final acceptance gates.
 
 ## Decisions Made During Implementation
@@ -91,4 +91,7 @@ None blocking Phases 0-5.
 - Phase 8 desktop/mobile browser review, responsive navigation, and copy-to-agent interaction: pass.
 - Phase 8 offline tests, vet, and race detector: pass on macOS arm64.
 - Phase 8 module proof: only `github.com/daniel-oluwadunsin/undolang`.
-- Reproducible-build verification: deferred to the release phase.
+- Phase 9 dependency proof: `go.mod` has no `require`, `go.sum` is absent, module list contains only the main module, and offline tests/build pass.
+- Phase 9 reproducibility proof: two canonical macOS arm64 builds both hashed `c6b9e15fb6ff95aaa1a5c5b6ec42b88efcbde0496d43a2a3b079892738141343`.
+- Phase 9 cross-builds: Linux amd64/arm64, macOS amd64/arm64, and Windows amd64 all pass with CGO disabled; only macOS arm64 behavior is claimed tested.
+- Phase 9 offline tests, vet, and race detector: pass on macOS arm64.

@@ -1,0 +1,9 @@
+Canonical dependency evidence: ../deps-proof.txt
+
+Toolchain: go version go1.27.0 darwin/arm64
+Module list: github.com/daniel-oluwadunsin/undolang
+go.sum: absent
+require directives: none
+GOPROXY=off go test ./...: PASS
+CGO_ENABLED=0 GOPROXY=off go build -trimpath -buildvcs=false ./cmd/undo: PASS
+Result: PASS — no third-party module or import.

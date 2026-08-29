@@ -1,0 +1,27 @@
+UndoLang 0.1.0 zero-dependency proof
+Captured: 2026-08-29, macOS arm64
+Toolchain: go version go1.27.0 darwin/arm64
+
+$ GOTOOLCHAIN=go1.27.0 GOPROXY=off go list -m all
+github.com/daniel-oluwadunsin/undolang
+
+$ test ! -f go.sum
+PASS (go.sum is absent)
+
+$ inspect go.mod
+module github.com/daniel-oluwadunsin/undolang
+
+go 1.27
+
+Result: no require directive.
+
+$ GOTOOLCHAIN=go1.27.0 GOPROXY=off go test ./...
+PASS (all repository packages, including compiled-binary crash/recovery and documentation tests)
+
+$ CGO_ENABLED=0 GOTOOLCHAIN=go1.27.0 GOPROXY=off go build -trimpath -buildvcs=false -o dist/undo-deps-proof ./cmd/undo
+PASS
+
+$ go list -deps -f '{{if not .Standard}}{{.ImportPath}}{{end}}' ./...
+Only the main module's own packages were listed. No external import path was present.
+
+Overall result: PASS — one main module, zero third-party dependencies, offline tests and canonical build successful.
