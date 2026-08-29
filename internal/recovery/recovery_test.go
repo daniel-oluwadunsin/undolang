@@ -112,6 +112,66 @@ func TestRecoveryWithoutActiveLockUsesSingleUnresolvedTransaction(t *testing.T) 
 	}
 }
 
+func TestRecoveryReconcilesCommittedJournalWithStaleLock(t *testing.T) {
+	root := t.TempDir()
+	store, err := state.Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tx, err := store.Begin("committed", "test.undo", "hash")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, status := range []state.Status{state.Prepared, state.Running, state.Verifying, state.Committing} {
+		if err = tx.Transition(status); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err = tx.Journal.Append(journal.TXCommit, journal.Payload{TransactionID: tx.Meta.ID}); err != nil {
+		t.Fatal(err)
+	}
+	if err = tx.Transition(state.Committed); err != nil {
+		t.Fatal(err)
+	}
+	if err = tx.Close(); err != nil {
+		t.Fatal(err)
+	}
+	result, err := RecoverRoot(root, Options{})
+	if err != nil || result.Status != state.Committed || result.TransactionID != tx.Meta.ID {
+		t.Fatalf("result=%#v err=%v", result, err)
+	}
+	if _, err = os.Stat(filepath.Join(root, ".undo", "active.lock")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("stale lock remains: %v", err)
+	}
+}
+
+func TestPendingFailsClosedWithMultipleUnresolvedTransactions(t *testing.T) {
+	root := t.TempDir()
+	store, _ := state.Open(root)
+	first, err := store.Begin("first", "test.undo", "hash")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = first.Close()
+	if err = os.Remove(filepath.Join(root, ".undo", "active.lock")); err != nil {
+		t.Fatal(err)
+	}
+	second, err := store.Begin("second", "test.undo", "hash")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = second.Close()
+	if _, err = Pending(store); err == nil {
+		t.Fatal("active lock masked another unresolved transaction")
+	}
+	if err = os.Remove(filepath.Join(root, ".undo", "active.lock")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = Pending(store); err == nil {
+		t.Fatal("multiple lockless unresolved transactions were accepted")
+	}
+}
+
 func TestRecoveryTruncatesOnlyTornFinalFrame(t *testing.T) {
 	root, _ := interruptedWrite(t, true, true)
 	store, _ := state.Open(root)

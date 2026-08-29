@@ -57,15 +57,25 @@ func checkpoint(options Options, name string) {
 // transaction metadata/journal remain authoritative.
 func Pending(store *state.Store) (string, error) {
 	lock, lockErr := store.Active()
-	if lockErr == nil {
-		return lock.TransactionID, nil
-	}
 	if !errors.Is(lockErr, os.ErrNotExist) {
-		return "", &Error{Code: Failed, Message: "cannot validate active transaction lock", Cause: lockErr}
+		if lockErr != nil {
+			return "", &Error{Code: Failed, Message: "cannot validate active transaction lock", Cause: lockErr}
+		}
 	}
 	unresolved, err := store.Unresolved()
 	if err != nil {
 		return "", err
+	}
+	if lockErr == nil {
+		for _, meta := range unresolved {
+			if meta.ID != lock.TransactionID {
+				return "", &Error{Code: Failed, Message: "active lock coexists with another unresolved transaction"}
+			}
+		}
+		if _, err = store.Inspect(lock.TransactionID); err != nil {
+			return "", &Error{Code: Failed, Message: "active lock transaction metadata is invalid", Cause: err}
+		}
+		return lock.TransactionID, nil
 	}
 	if len(unresolved) == 0 {
 		return "", nil
