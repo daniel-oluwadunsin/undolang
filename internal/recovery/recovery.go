@@ -37,7 +37,7 @@ type Result struct {
 	TransactionID string       `json:"transaction_id,omitempty"`
 	Status        state.Status `json:"status"`
 	Recovered     int          `json:"recovered_operations"`
-	TornTail      bool         `json:"torn_tail_repaired,omitempty"`
+	TornTail      bool         `json:"torn_tail_repaired,omitzero"`
 }
 
 type operation struct {
