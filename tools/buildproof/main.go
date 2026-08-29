@@ -15,12 +15,13 @@ func main() {
 	flags := flag.NewFlagSet("buildproof", flag.ContinueOnError)
 	flags.SetOutput(os.Stderr)
 	output := flags.String("output", "", "also write the checksum list to this file")
+	hashOnly := flags.Bool("hash-only", false, "print one SHA-256 hash per input without file names")
 	if err := flags.Parse(os.Args[1:]); err != nil {
 		os.Exit(2)
 	}
 	paths := flags.Args()
 	if len(paths) == 0 {
-		fmt.Fprintln(os.Stderr, "usage: go run ./tools/buildproof [-output FILE] FILE [FILE ...]")
+		fmt.Fprintln(os.Stderr, "usage: go run ./tools/buildproof [-output FILE] [-hash-only] FILE [FILE ...]")
 		os.Exit(2)
 	}
 	hashes := make([][sha256.Size]byte, 0, len(paths))
@@ -32,7 +33,11 @@ func main() {
 			os.Exit(1)
 		}
 		hashes = append(hashes, hash)
-		fmt.Fprintf(&receipt, "%x  %s\n", hash, path)
+		if *hashOnly {
+			fmt.Fprintf(&receipt, "%x\n", hash)
+		} else {
+			fmt.Fprintf(&receipt, "%x  %s\n", hash, path)
+		}
 	}
 	_, _ = os.Stdout.Write(receipt.Bytes())
 	if len(hashes) == 2 && hashes[0] != hashes[1] {

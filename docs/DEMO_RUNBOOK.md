@@ -126,12 +126,12 @@ demo must show `recover` handling an actually unresolved transaction.
 
 ```sh
 ./scripts/deps-proof.sh
-./scripts/repro-build.sh
+make reproducible-build
 ```
 
-Show the one-module output, the offline test/build pass, and the matching A/B
-SHA-256 values. `STDLIB.md` contains the 15 concrete substitutions behind the
-empty manifest.
+Show the one-module output, the offline test/build pass, and the labeled
+matching A/B SHA-256 values. `STDLIB.md` contains the 15 concrete substitutions
+behind the empty manifest.
 
 ## 4:30–5:00 — Close
 

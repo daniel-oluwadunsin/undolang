@@ -58,6 +58,17 @@ make stress
 make crash-test
 ```
 
+For the focused reproducible-build bonus proof (with labeled Build A/Build B
+hashes), run:
+
+```sh
+make reproducible-build
+```
+
+The proof reuses the Go 1.27.0 toolchain installed by `install.sh` when the
+system `go` command is older. You can override it explicitly with
+`make reproducible-build GO=/path/to/go`.
+
 ## 3. Make a tiny language program
 
 Create a temporary application root and a `.undo` program:

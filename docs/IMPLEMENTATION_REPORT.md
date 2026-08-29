@@ -219,7 +219,7 @@ Fresh evidence from this checkout on macOS arm64, Go 1.27.0:
 | `go test ./internal/cli -run '^TestRealProcessCrashRecoveryMatrix$' -count=1` | PASS, 9 real kill/recover checkpoints, 5.767s |
 | all five `examples/*.undo` with real `check` and `plan` fixtures | PASS |
 | `./scripts/deps-proof.sh` | PASS; offline tests and build |
-| `./scripts/repro-build.sh` | PASS; identical A/B SHA-256 |
+| `make reproducible-build` (`./scripts/repro-build.sh`) | PASS; labeled identical A/B SHA-256; reuses installer toolchain when needed |
 | `./scripts/release.sh` | PASS; five cross-builds |
 | `GOTOOLCHAIN=go1.27.0 GOPROXY=off go list -m all` | one line: main module only |
 | `make verify` | PASS; build, offline tests, vet, race, example parsing, dependency proof, reproducibility, and release cross-builds |

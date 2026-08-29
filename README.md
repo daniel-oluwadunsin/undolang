@@ -31,6 +31,13 @@ The resulting binary has no runtime package, database, daemon, cloud, API-key, o
 
 For a pinned offline release build, run `./scripts/build.sh`. Release maintainers can use `./scripts/release.sh` to cross-build the documented targets and print their SHA-256 hashes. Generated binaries stay under ignored `dist/`.
 
+To produce the reproducible-build bonus receipt in one command, run
+`make reproducible-build`. It builds the artifact twice with the pinned Go
+1.27.0 settings, prints labeled SHA-256 values for Build A and Build B, and
+fails unless they are byte-identical. If `install.sh` has bootstrapped Go for
+you, the target reuses that user-local toolchain automatically. `make repro`
+remains an alias.
+
 Local convenience installers are available as `./install.sh` for macOS/Linux and `./install.ps1` for Windows. They copy an existing local binary without needing Go. When building this checkout, they automatically download the official Go 1.27.0 archive only if a compatible Go 1.27.x is not already available, verify its SHA-256 checksum, and keep it in a user-local UndoLang toolchain directory. Use `--no-install-go` (or `-NoInstallGo`) for an entirely offline install; neither installer needs administrator access.
 
 ## First program
@@ -111,6 +118,7 @@ GOPROXY=off go test -race ./...
 go list -m all
 ./scripts/deps-proof.sh
 ./scripts/repro-build.sh
+make reproducible-build
 ```
 
 See `docs/IMPLEMENTATION_REPORT.md` for final evidence and platform qualifications.

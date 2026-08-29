@@ -16,7 +16,7 @@ ALLOW_PATH_FLAGS = $(foreach path,$(ALLOW_PATHS),--allow-path "$(path)")
 
 .PHONY: help all build version test vet race fuzz stress crash-test examples \
 	check plan run recover history inspect capabilities schema agent-guide \
-	modules deps-proof repro release verify
+	modules deps-proof repro reproducible-build release verify
 
 help:
 	@echo "UndoLang commands"
@@ -38,7 +38,8 @@ help:
 	@echo "  make schema                                     print the language schema"
 	@echo "  make agent-guide                                print the agent workflow"
 	@echo "  make fuzz | make stress | make crash-test       run longer safety checks"
-	@echo "  make deps-proof | make repro | make release     write/prove release artifacts"
+	@echo "  make reproducible-build                        build twice and show both SHA-256 hashes"
+	@echo "  make deps-proof | make repro | make release   write/prove release artifacts"
 	@echo ""
 	@echo "Optional variables: BIN=..., FUZZTIME=5s, TRANSACTION=..., JSON=1, YES=1, ALLOW_PATHS='dir1 dir2'"
 
@@ -115,10 +116,12 @@ agent-guide: build
 deps-proof:
 	./scripts/deps-proof.sh
 
-repro:
-	./scripts/repro-build.sh
+reproducible-build:
+	GO="$(GO)" ./scripts/repro-build.sh
+
+repro: reproducible-build
 
 release:
 	./scripts/release.sh
 
-verify: build test vet race examples modules deps-proof repro release
+verify: build test vet race examples modules deps-proof reproducible-build release
