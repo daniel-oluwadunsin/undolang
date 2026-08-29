@@ -16,7 +16,7 @@ Codex must:
 
 ## Current Phase
 
-Phase 7 CLI completion, agent contracts, history/inspect, and installation.
+Phase 8 static newsprint marketing site, public documentation, and validated examples.
 
 ## Completed
 
@@ -27,10 +27,11 @@ Phase 7 CLI completion, agent contracts, history/inspect, and installation.
 - Phase 4: restrictive `.undo` layout, UUIDv7 metadata, exclusive active lock, validated state transitions, synced atomic status writes, CRC32C framed journal, strict replay, torn-tail detection, and history/inspection foundations.
 - Phase 5: serializable prepare/apply/verify/undo metadata; verified backups; mkdir, copy, move, write, literal streaming replace, and delete primitives; complete-entry overwrite restoration; root-safe temporary installation; basic mode preservation; explicit symlink/special-file policies; and fail-closed inverse verification.
 - Phase 6: crash-classifiable prepared metadata, strict journal state replay, source-order execution, post-lock revalidation, postconditions, journal-driven reverse rollback, idempotent recovery, real `run`/`recover`, and nine real-process kill/recover checkpoints.
+- Phase 7: complete help and approval UX, whole-program JSON results, stable exit classes, history/inspect, expanded schema/capabilities, compiled-binary contract tests, and local shell/PowerShell installers.
 
 ## In Progress
 
-- Finish command help, JSON error/result details, black-box coverage, and local installation scripts.
+- Build the static newsprint landing/docs experience, canonical public references, real examples, agent context export, and documentation correctness tests.
 
 ## Next
 
@@ -83,4 +84,7 @@ None blocking Phases 0-5.
 - Phase 6 `GOPROXY=off GOTOOLCHAIN=go1.27.0 go test -race ./...`: pass on macOS arm64.
 - Phase 6 crash matrix: nine externally killed subprocess checkpoints recovered by a freshly built CLI process; pass on macOS arm64.
 - Phase 6 module proof: only `github.com/daniel-oluwadunsin/undolang`.
+- Phase 7 offline tests, vet, and race detector: pass on macOS arm64.
+- Phase 7 compiled-binary help/version/schema/capabilities tests and run/history/inspect JSON tests: pass.
+- Phase 7 installer shell syntax validation: pass; PowerShell execution is untested on this host.
 - Reproducible-build verification: deferred to the release phase.

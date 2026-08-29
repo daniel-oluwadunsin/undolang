@@ -142,3 +142,32 @@ assert contains "existing" "never-present"
 		})
 	}
 }
+
+func TestCompiledBinaryContracts(t *testing.T) {
+	binary := filepath.Join(t.TempDir(), "undo")
+	if os.PathSeparator == '\\' {
+		binary += ".exe"
+	}
+	build := exec.Command("go", "build", "-trimpath", "-buildvcs=false", "-o", binary, "./cmd/undo")
+	build.Dir = filepath.Clean(filepath.Join("..", ".."))
+	build.Env = append(os.Environ(), "GOPROXY=off")
+	if output, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("build: %v\n%s", err, output)
+	}
+	for _, args := range [][]string{{"--help"}, {"version", "--json"}, {"capabilities", "--json"}, {"schema", "--json"}, {"run", "--help"}, {"recover", "--help"}, {"history", "--help"}, {"inspect", "--help"}} {
+		command := exec.Command(binary, args...)
+		stdout, err := command.Output()
+		if err != nil {
+			t.Fatalf("%v: %v", args, err)
+		}
+		if len(stdout) == 0 {
+			t.Fatalf("%v produced no stdout", args)
+		}
+		if args[len(args)-1] == "--json" {
+			var envelope map[string]any
+			if err := json.Unmarshal(stdout, &envelope); err != nil || envelope["api_version"] != "undo-cli/1" {
+				t.Fatalf("%v output=%s err=%v", args, stdout, err)
+			}
+		}
+	}
+}

@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/daniel-oluwadunsin/undolang/internal/buildinfo"
+	"github.com/daniel-oluwadunsin/undolang/internal/fsop"
 	"github.com/daniel-oluwadunsin/undolang/internal/journal"
 	"github.com/daniel-oluwadunsin/undolang/internal/lang/diag"
 	"github.com/daniel-oluwadunsin/undolang/internal/lang/frontend"
@@ -189,6 +190,10 @@ func load(c common) (validate.Program, []byte, string, *pathcap.Set, error) {
 }
 
 func (a App) check(args []string) int {
+	if hasHelp(args) {
+		fmt.Fprintln(a.Stdout, "usage: undo check FILE [--root DIR] [--allow-path DIR]... [--json]")
+		return 0
+	}
 	c, err := parseCommon("check", args, false, false)
 	if err != nil {
 		return a.err(jsonRequested(args), err)
@@ -213,6 +218,10 @@ func (a App) check(args []string) int {
 }
 
 func (a App) plan(args []string) int {
+	if hasHelp(args) {
+		fmt.Fprintln(a.Stdout, "usage: undo plan FILE [--transaction NAME] [--root DIR] [--allow-path DIR]... [--json]")
+		return 0
+	}
 	c, err := parseCommon("plan", args, true, false)
 	if err != nil {
 		return a.err(jsonRequested(args), err)
@@ -438,13 +447,33 @@ func (a App) inspect(args []string) int {
 	if closeErr != nil {
 		return a.err(flags.json, closeErr)
 	}
+	type inspectedOperation struct {
+		ID   string `json:"id"`
+		Kind string `json:"kind"`
+	}
+	var operations []inspectedOperation
+	for _, record := range replay.Records {
+		if record.Type != journal.OPPrepared {
+			continue
+		}
+		var payload struct {
+			OperationID string        `json:"operation_id"`
+			Data        fsop.Prepared `json:"data"`
+		}
+		if err = json.Unmarshal(record.Payload, &payload); err != nil {
+			return a.err(flags.json, err)
+		}
+		operations = append(operations, inspectedOperation{ID: payload.OperationID, Kind: string(payload.Data.Kind)})
+	}
 	result := struct {
-		Metadata        state.Metadata `json:"metadata"`
-		JournalRecords  int            `json:"journal_records"`
-		JournalState    string         `json:"journal_state"`
-		TornTail        bool           `json:"torn_tail"`
-		BackupsRetained bool           `json:"backups_retained"`
-	}{Metadata: meta, JournalRecords: len(replay.Records), JournalState: replay.State, TornTail: replay.TornTail, BackupsRetained: !meta.BackupCleaned}
+		Metadata        state.Metadata       `json:"metadata"`
+		JournalRecords  int                  `json:"journal_records"`
+		JournalState    string               `json:"journal_state"`
+		TornTail        bool                 `json:"torn_tail"`
+		BackupsRetained bool                 `json:"backups_retained"`
+		Operations      []inspectedOperation `json:"operations"`
+		Warnings        []string             `json:"warnings"`
+	}{Metadata: meta, JournalRecords: len(replay.Records), JournalState: replay.State, TornTail: replay.TornTail, BackupsRetained: !meta.BackupCleaned, Operations: operations, Warnings: []string{"history is audit metadata; post-commit undo is not supported"}}
 	if flags.json {
 		return a.success(result)
 	}
@@ -498,6 +527,10 @@ func boolFlag(args []string) (bool, error) {
 }
 
 func (a App) version(args []string) int {
+	if hasHelp(args) {
+		fmt.Fprintln(a.Stdout, "usage: undo version [--json]")
+		return 0
+	}
 	j, err := boolFlag(args)
 	if err != nil {
 		return a.err(false, err)
@@ -511,6 +544,10 @@ func (a App) version(args []string) int {
 }
 
 func (a App) capabilities(args []string) int {
+	if hasHelp(args) {
+		fmt.Fprintln(a.Stdout, "usage: undo capabilities [--json]")
+		return 0
+	}
 	j, err := boolFlag(args)
 	if err != nil {
 		return a.err(false, err)
@@ -524,6 +561,10 @@ func (a App) capabilities(args []string) int {
 }
 
 func (a App) schema(args []string) int {
+	if hasHelp(args) {
+		fmt.Fprintln(a.Stdout, "usage: undo schema [--json]")
+		return 0
+	}
 	j, err := boolFlag(args)
 	if err != nil {
 		return a.err(false, err)
