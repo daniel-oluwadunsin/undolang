@@ -90,10 +90,11 @@ Noninteractive and JSON mutation requires `--yes`; `--json` alone never grants a
 - [Security](docs/SECURITY.md)
 - [AI agent guide](docs/AGENTS_GUIDE.md)
 - [Support matrix](docs/SUPPORT_MATRIX.md)
-- [Live filesystem examples](examples/live-filesystem.undo) (one program, selectable transactions)
+- [Live filesystem examples](examples/fs.undo) (one program, selectable transactions)
 - [Static marketing/docs site](marketing/index.html)
 - [Standard-library substitutions](STDLIB.md)
 - [Five-minute demo runbook](docs/DEMO_RUNBOOK.md)
+- [Four-minute demo video script](docs/DEMO_VIDEO_SCRIPT.md)
 - [Simple testing guide](TESTING.md)
 
 ## Why Track F
