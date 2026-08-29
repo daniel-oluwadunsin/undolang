@@ -134,12 +134,17 @@ Ship `install.sh` that operates on a local binary/source tree and copies the bin
 It should:
 
 - not require a package manager;
-- not install dependencies;
+- not install dependencies for the runtime;
 - not start a daemon;
-- not fetch packages;
+- verify any optional compiler archive before extraction;
 - clearly print if `~/.local/bin` is not in PATH.
 
-Avoid making `curl | sh` the canonical hackathon instruction. A future hosted installer may download release assets, but that is distribution convenience, not runtime behavior.
+When a source build is requested and no Go 1.27.x is available, the installer
+may download the pinned official Go 1.27.0 archive from `go.dev`, verify its
+SHA-256 checksum, and place it under the user's UndoLang toolchain directory.
+This is an opt-out convenience for source builds, not a runtime dependency;
+`--no-install-go` keeps the path entirely offline. Avoid making `curl | sh` the
+canonical hackathon instruction.
 
 ### Windows convenience
 
@@ -150,6 +155,8 @@ Avoid making `curl | sh` the canonical hackathon instruction. A future hosted in
 ```
 
 It may print PATH instructions. Do not require administrative installation for basic use.
+For source builds it follows the same policy as `install.sh`; use
+`-NoInstallGo` to disable the verified user-local Go bootstrap.
 
 ## 9. Optional self-install command
 

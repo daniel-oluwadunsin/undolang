@@ -97,7 +97,7 @@ Required conditions:
 - Primary distribution is a native compiled Go executable.
 - End users do not need Go when using prebuilt release binaries.
 - Running the downloaded binary directly is supported; installation is optional.
-- Provide a local `install.sh` convenience path for macOS/Linux and a PowerShell equivalent for Windows, but these must not be runtime requirements.
+- Provide a local `install.sh` convenience path for macOS/Linux and a PowerShell equivalent for Windows, but these must not be runtime requirements. If a source build lacks Go 1.27.x, the installers may fetch and checksum-verify the official Go 1.27.0 archive into a user-local toolchain directory; copying a prebuilt binary remains fully offline. `--no-install-go` / `-NoInstallGo` disables bootstrap.
 - No installer may make the product depend on a daemon, package manager, database, or cloud service.
 
 ## Bonus strategy

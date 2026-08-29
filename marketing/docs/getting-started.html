@@ -39,6 +39,14 @@
           requires no Go installation, runtime service, API key, database, or
           environment variable. <code>NO_COLOR</code> is optional.
         </p>
+        <p>
+          If you use the source checkout and Go is missing or older than 1.27,
+          the local installer can download the official Go 1.27.0 archive,
+          verify its SHA-256 checksum, and keep it in a user-local toolchain
+          directory. Pass <code>--no-install-go</code> (or
+          <code>-NoInstallGo</code> on PowerShell) to require an offline
+          install.
+        </p>
         <h2 id="build">Build from source</h2>
         <div class="copy-row">
           <button data-copy="#build-code">Copy</button>
@@ -53,8 +61,9 @@ go build -trimpath -buildvcs=false -o undo ./cmd/undo
         <p>
           Keep the binary anywhere on <code>PATH</code>, or run
           <code>./install.sh</code> to copy a local binary (or build the local
-          checkout) to <code>~/.local/bin/undo</code>. The installer does not
-          download dependencies.
+          checkout) to <code>~/.local/bin/undo</code>. A source build uses an
+          existing Go 1.27.x when available and otherwise performs the
+          checksum-verified user-local Go bootstrap described above.
         </p>
         <h3>Windows</h3>
         <p>
@@ -62,7 +71,9 @@ go build -trimpath -buildvcs=false -o undo ./cmd/undo
           <code>go build -trimpath -buildvcs=false -o undo.exe ./cmd/undo</code
           >. Run <code>.\install.ps1</code> to copy the local binary to
           <code>%LOCALAPPDATA%\UndoLang\bin</code>; add that directory to the
-          user PATH when prompted.
+          user PATH when prompted. If the checkout needs a compiler, the
+          script can bootstrap Go 1.27.0 locally; pass
+          <code>-NoInstallGo</code> to disable that.
         </p>
         <h2 id="first-program">Your first program</h2>
         <pre><code class="language-undolang">transaction "initialize" {

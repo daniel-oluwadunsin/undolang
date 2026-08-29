@@ -42,7 +42,7 @@ $ ./scripts/deps-proof.sh
 github.com/daniel-oluwadunsin/undolang
 ?    github.com/daniel-oluwadunsin/undolang/cmd/undo [no test files]
 ?    github.com/daniel-oluwadunsin/undolang/internal/buildinfo [no test files]
-ok   github.com/daniel-oluwadunsin/undolang/internal/cli 6.996s
+ok   github.com/daniel-oluwadunsin/undolang/internal/cli (cached)
 ok   github.com/daniel-oluwadunsin/undolang/internal/condition (cached)
 ok   github.com/daniel-oluwadunsin/undolang/internal/fsop (cached)
 ok   github.com/daniel-oluwadunsin/undolang/internal/journal (cached)
@@ -61,7 +61,7 @@ ok   github.com/daniel-oluwadunsin/undolang/internal/recovery (cached)
 ok   github.com/daniel-oluwadunsin/undolang/internal/state (cached)
 ok   github.com/daniel-oluwadunsin/undolang/internal/streamutil (cached)
 ?    github.com/daniel-oluwadunsin/undolang/internal/txn [no test files]
-ok   github.com/daniel-oluwadunsin/undolang/tests 0.705s
+ok   github.com/daniel-oluwadunsin/undolang/tests 0.811s
 ?    github.com/daniel-oluwadunsin/undolang/tools/buildproof [no test files]
 offline build: PASS
 

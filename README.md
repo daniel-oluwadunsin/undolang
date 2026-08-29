@@ -22,7 +22,7 @@ The resulting binary has no runtime package, database, daemon, cloud, API-key, o
 
 For a pinned offline release build, run `./scripts/build.sh`. Release maintainers can use `./scripts/release.sh` to cross-build the documented targets and print their SHA-256 hashes. Generated binaries stay under ignored `dist/`.
 
-Local convenience installers are available as `./install.sh` for macOS/Linux and `./install.ps1` for Windows. They copy an existing local binary or build the local source tree; they do not download packages or require administrator access.
+Local convenience installers are available as `./install.sh` for macOS/Linux and `./install.ps1` for Windows. They copy an existing local binary without needing Go. When building this checkout, they automatically download the official Go 1.27.0 archive only if a compatible Go 1.27.x is not already available, verify its SHA-256 checksum, and keep it in a user-local UndoLang toolchain directory. Use `--no-install-go` (or `-NoInstallGo`) for an entirely offline install; neither installer needs administrator access.
 
 ## First program
 

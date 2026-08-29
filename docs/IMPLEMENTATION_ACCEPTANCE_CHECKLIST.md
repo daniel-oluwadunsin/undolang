@@ -110,7 +110,7 @@ task.
 - [x] security/limitations honest.
 - [x] support matrix says tested vs cross-built.
 - [x] prebuilt release strategy documented.
-- [x] install.sh/install.ps1 convenience only.
+- [x] install.sh/install.ps1 convenience only; source builds can bootstrap a pinned Go 1.27.0 user-locally with checksum verification, while prebuilt installs stay offline.
 - [x] no runtime environment variables/API keys.
 
 ## Bonuses/submission

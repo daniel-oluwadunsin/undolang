@@ -22,6 +22,9 @@ Quoted strings support backslash, quote, newline, carriage return, tab, and Unic
 PATHS
 Relative paths bind to --root or invocation cwd, never script location. Absolute paths outside root require repeatable --allow-path capabilities. Actual access uses os.Root. Traversal, unsafe symlink parents, root mutation, and .undo are rejected. Moving/deleting a symlink affects the entry; symlink copy and special files are unsupported.
 
+INSTALLATION
+A prebuilt binary needs no Go. For a source checkout, install.sh (macOS/Linux) and install.ps1 (Windows) reuse Go 1.27.x when present. If it is missing or older, they download the official Go 1.27.0 archive from go.dev, verify its pinned SHA-256 checksum, and place it in a user-local UndoLang toolchain directory; no administrator access is needed. Use install.sh --no-install-go or install.ps1 -NoInstallGo to require an offline/local-only install. Runtime behavior still has no external dependency.
+
 RECOVERY
 Before mutation the runtime verifies backups and syncs OP_PREPARED with before/after descriptors. After verified mutation it syncs OP_APPLIED. Assertions run after all operations. Known failures replay the durable journal and reverse operations. A fresh recover process resumes interrupted rollback. An incomplete final frame can be truncated after a valid prefix; complete corruption or filesystem state matching neither before nor expected after fails closed and retains backups.
 

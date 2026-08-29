@@ -111,8 +111,13 @@ On Windows PowerShell:
 .\install.ps1 -SourceBinary .\undo.exe
 ```
 
-Neither installer downloads packages or requires administrator access. A
-prebuilt native binary can simply be run directly.
+If the source build needs a compiler, either installer downloads the official
+Go 1.27.0 archive from `go.dev`, verifies its pinned SHA-256 checksum, and
+installs it under a user-local UndoLang toolchain directory. An existing
+compatible Go 1.27.x is reused. Pass `--no-install-go` to `install.sh` or
+`-NoInstallGo` to `install.ps1` to require an entirely offline/local-only
+install. A prebuilt native binary can simply be run directly and never needs
+Go.
 
 Human flow:
 
@@ -196,10 +201,10 @@ Fresh evidence from this checkout on macOS arm64, Go 1.27.0:
 | `GOPROXY=off GOTOOLCHAIN=go1.27.0 go test ./...` | PASS |
 | `GOPROXY=off GOTOOLCHAIN=go1.27.0 go vet ./...` | PASS |
 | `GOPROXY=off GOTOOLCHAIN=go1.27.0 go test -race ./...` | PASS |
-| `UNDOLANG_LARGE_TREE=1 ... go test ./internal/plan -run '^TestStressPlan100KEntryTree$' -count=1` | PASS, 19.373s |
-| `UNDOLANG_STRESS=1 ... go test ./internal/fsop -run '^TestStressCopy256MiB$' -count=1` | PASS, 3.255s |
-| lexer/parser/journal `-fuzz` runs, 5s each | PASS; 62,908 / 67,755 / 247,329 executions reported |
-| `go test ./internal/cli -run '^TestRealProcessCrashRecoveryMatrix$' -count=1` | PASS, 9 real kill/recover checkpoints, 5.486s |
+| `UNDOLANG_LARGE_TREE=1 ... go test ./internal/plan -run '^TestStressPlan100KEntryTree$' -count=1` | PASS, 23.589s |
+| `UNDOLANG_STRESS=1 ... go test ./internal/fsop -run '^TestStressCopy256MiB$' -count=1` | PASS, 2.260s |
+| lexer/parser/journal `-fuzz` runs, 5s each | PASS; 142,471 / 73,804 / 279,128 executions reported |
+| `go test ./internal/cli -run '^TestRealProcessCrashRecoveryMatrix$' -count=1` | PASS, 9 real kill/recover checkpoints, 5.767s |
 | all five `examples/*.undo` with real `check` and `plan` fixtures | PASS |
 | `./scripts/deps-proof.sh` | PASS; offline tests and build |
 | `./scripts/repro-build.sh` | PASS; identical A/B SHA-256 |
@@ -246,12 +251,38 @@ reparse-point behavior, Linux filesystem durability, actual cross-device
 
 ## Acceptance and limitations
 
-The 26 PRD acceptance criteria are met by implementation/tests/evidence,
-including parsing/diagnostics, non-mutating check/plan, root and symlink safety,
-all six operations, precondition/postcondition/operation rollback, real crash
-recovery, journal corruption policy, bounded-memory large-file paths, human and
-JSON CLI, agent self-description, offline tests, empty module graph, no runtime
-shell-out, reproducible build, STDLIB ledger, static site, and honest limits.
+The PRD acceptance criteria were checked individually:
+
+| # | Criterion | Evidence/status |
+|---:|---|---|
+| 1 | Valid `.undo` parses from any filesystem location | PASS — frontend and script-location/root integration tests. |
+| 2 | Invalid syntax has line/column and stable error code | PASS — lexer/parser diagnostics tests. |
+| 3 | `check` does not mutate targets | PASS — CLI snapshot tests. |
+| 4 | `plan` does not mutate and describes effects | PASS — planner/CLI snapshot and JSON tests. |
+| 5 | Relative paths use transaction root | PASS — path capability tests. |
+| 6 | Absolute paths inside root work | PASS — path capability tests. |
+| 7 | External absolute paths require capability | PASS — denied/allowed path tests. |
+| 8 | `..` and symlink escapes are rejected | PASS — traversal and symlink race-policy tests. |
+| 9 | All six mutations work on real filesystems | PASS — `internal/fsop` integration tests. |
+| 10 | Preconditions prevent mutation | PASS — planner/transaction tests. |
+| 11 | Failed postconditions roll back | PASS — program/transaction integration tests. |
+| 12 | Mid-transaction operation failure rolls back | PASS — operation/program failure tests. |
+| 13 | Real process kill leaves recoverable state | PASS — nine real kill checkpoints. |
+| 14 | `recover` restores prior state | PASS — fresh-process crash/recovery matrix. |
+| 15 | Corrupt non-tail journal fails closed | PASS — CRC/sequence/replay tests. |
+| 16 | Torn final journal record is handled safely | PASS — torn-tail decoder/recovery tests. |
+| 17 | Large-file operations use bounded memory | PASS — streaming implementation and 256 MiB stress test. |
+| 18 | Human and JSON CLIs work | PASS — CLI and compiled-binary contract tests. |
+| 19 | Agent self-description works without project docs | PASS — capabilities/schema/agent-guide tests. |
+| 20 | Tests pass with `GOPROXY=off` | PASS — final offline test gate. |
+| 21 | Module list contains only the main module | PASS — current `go list -m all` receipt. |
+| 22 | Production binary shells out to no executable | PASS — production imports are stdlib/internal only; shelling out appears only in tests/tooling. |
+| 23 | Two canonical builds are byte-identical | PASS — current reproducibility receipt. |
+| 24 | `STDLIB.md` has at least 10 real substitutions | PASS — 15 ledger rows. |
+| 25 | Static marketing/docs site has no third-party runtime dependency | PASS — asset/link/dependency tests. |
+| 26 | README states unsupported/limited semantics honestly | PASS — build, Track F rationale, guarantees, platform limits, and safety limits are documented. |
+
+Result: **26/26 repository acceptance criteria PASS.**
 
 The remaining limitations are intentional v0.1 boundaries:
 

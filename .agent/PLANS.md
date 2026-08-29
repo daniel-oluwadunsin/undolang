@@ -16,7 +16,7 @@ Codex must:
 
 ## Current Phase
 
-Complete through Phase 10. No implementation phase is currently active.
+Complete through Phase 11. No implementation phase is currently active.
 
 ## Completed
 
@@ -31,6 +31,7 @@ Complete through Phase 10. No implementation phase is currently active.
 - Phase 8: static newsprint landing/docs site, canonical runtime guides, five parser-validated examples, downloadable agent context, responsive navigation, and automated snippet/link/command correctness tests.
 - Phase 9: version 0.1.0, MIT license, Track F metadata, 15-entry stdlib ledger, dependency receipts, byte-identical build proof, local installers, and five-target cross-build/checksum tooling.
 - Phase 10: hostile path/state/journal/planner/CLI review, canonical-root and symlink-identity fixes, strict recovery ownership, structured agent failures, permission/no-space classifications, active fuzzing, 100k-tree/256 MiB stress, and final acceptance evidence.
+- Phase 11: final submission-readiness audit, explicit 26-item acceptance matrix, refreshed dependency/reproducibility receipts, complete implementation handoff, and copyable real-kill demo runbook.
 
 ## In Progress
 
@@ -38,7 +39,7 @@ Complete through Phase 10. No implementation phase is currently active.
 
 ## Next
 
-- Submission-only work outside implementation: record/publish the five-minute demo and run behavioral suites on additional real operating systems if available.
+- Submission-only work outside implementation: publish the public repository, upload release artifacts/checksums if desired, record/publish the five-minute demo, and complete the hackathon form.
 
 ## Decisions Made During Implementation
 
@@ -54,6 +55,7 @@ Complete through Phase 10. No implementation phase is currently active.
 - Recovery classifies each prepared operation against durable before/after descriptors. Any state matching neither descriptor is ambiguous and fails closed with backups retained.
 - A torn final journal frame may be truncated only to a fully validated prefix; complete-frame corruption is never repaired.
 - Mutating JSON/noninteractive CLI use requires `--yes`; interactive confirmation is added in Phase 7.
+- Source installers now auto-bootstrap the pinned Go 1.27.0 archive only when a source build lacks Go 1.27.x. Archives are fetched from `go.dev`, checked against pinned SHA-256 values for supported host architectures, installed under a user-local toolchain directory, and never added to the shipped runtime. `--no-install-go` / `-NoInstallGo` retains an explicitly offline path; prebuilt binaries never invoke the bootstrap.
 
 ## Open Questions
 
@@ -100,3 +102,14 @@ None blocking Phases 0-5.
 - Phase 10 opt-in scale: 100,000-entry planner test pass in 21.851s; 256 MiB copy/undo test pass in 1.883s.
 - Phase 10 uncached nine-checkpoint real-process crash/recovery matrix: pass in 3.720s.
 - Phase 10 final offline tests, vet, race detector, documentation validation, dependency proof, five release cross-builds, and module proof: pass.
+- Phase 11 final fresh `GOPROXY=off GOTOOLCHAIN=go1.27.0 go test ./... -count=1`: pass.
+- Phase 11 final `GOPROXY=off GOTOOLCHAIN=go1.27.0 go vet ./...`: pass.
+- Phase 11 final `GOPROXY=off GOTOOLCHAIN=go1.27.0 go test -race ./... -count=1`: pass.
+- Phase 11 final example parse/plan verification: all five `examples/*.undo` passed real `check` and `plan` commands against prepared fixtures.
+- Phase 11 final documentation checks: all public `.undo` snippets parsed, marketing links/assets checks passed, and every documented command exposed help.
+- Phase 11 final active fuzzing: lexer 142,471 executions, parser 73,804, journal 279,128; all pass.
+- Phase 11 final stress/crash: 100k-entry planner 23.589s, 256 MiB copy 2.260s, nine real kill/recover checkpoints 5.767s; all pass.
+- Phase 11 final dependency proof: one `go list -m all` line, no `require`, no `go.sum`, offline test/build pass.
+- Phase 11 final reproducibility: both canonical macOS arm64 builds hash `6a7b1ba6a62e911d4ab93759a9809615efda8369d7347a5e562bc7d336771d2d`.
+- Phase 11 final release cross-build: Linux amd64/arm64, macOS amd64/arm64, and Windows amd64 pass with CGO disabled.
+- Installer bootstrap update: shell syntax/help and documentation were updated for the verified Go 1.27.0 user-local bootstrap; PowerShell execution remains untested on this macOS host.

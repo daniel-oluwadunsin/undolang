@@ -12,7 +12,7 @@ undolang/
 ├── .zero-dep.toml
 ├── deps-proof.txt
 ├── Makefile                    # optional convenience; canonical go build must remain obvious
-├── install.sh                  # local convenience, no network requirement
+├── install.sh                  # local convenience; verified optional Go bootstrap
 ├── install.ps1
 │
 ├── cmd/
