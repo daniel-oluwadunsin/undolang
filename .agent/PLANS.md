@@ -16,20 +16,21 @@ Codex must:
 
 ## Current Phase
 
-Phase 2 path capabilities and non-mutating condition evaluation.
+Phase 3 immutable planner and production read-only CLI.
 
 ## Completed
 
 - Phase 0: repository/bootstrap plan recorded.
 - Phase 1: Go 1.27 module, source spans, UTF-8 lexer, recursive-descent parser, ordered AST, semantic validator, spelling suggestions, and initial `check`/`version` entrypoint.
+- Phase 2: `os.Root` capability set, most-specific absolute mapping, reserved/escape policy, safe stat/open behavior, and bounded-memory contains/SHA-256 evaluation.
 
 ## In Progress
 
-- Implement traversal-resistant roots, resolved path types, reserved-state rules, and streamed conditions.
+- Implement exact/deferred planning, stable reports, and read-only CLI/JSON contracts.
 
 ## Next
 
-Phase 3: immutable planner and production read-only CLI contracts.
+Phase 4: durable state, lock, transaction state machine, and framed journal.
 
 ## Decisions Made During Implementation
 
@@ -53,4 +54,6 @@ None blocking Phases 0-5.
 - Phase 1 `GOPROXY=off go vet ./...`: pass.
 - Phase 1 `GOPROXY=off go test -race ./...`: pass on macOS arm64.
 - Phase 1 `go list -m all`: one module (`github.com/daniel-oluwadunsin/undolang`).
+- Phase 2 offline tests, vet, and race detector: pass on macOS arm64.
+- Phase 2 module proof: one main module.
 - reproducible-build verification: not run
