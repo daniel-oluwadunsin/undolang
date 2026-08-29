@@ -121,6 +121,13 @@ func TestJSONErrorDoesNotPolluteStdout(t *testing.T) {
 	}
 }
 
+func TestExplicitFalseJSONFlagKeepsHumanErrorOnStderr(t *testing.T) {
+	code, stdout, stderr := invoke("check", "--json=false")
+	if code == 0 || stdout != "" || stderr == "" {
+		t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+}
+
 func TestRunRequiresApprovalAndCommitsWithYes(t *testing.T) {
 	root := t.TempDir()
 	script := filepath.Join(t.TempDir(), "run.undo")

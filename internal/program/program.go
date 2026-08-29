@@ -3,6 +3,7 @@ package program
 import (
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/daniel-oluwadunsin/undolang/internal/lang/validate"
 	"github.com/daniel-oluwadunsin/undolang/internal/pathcap"
@@ -95,13 +96,17 @@ func Run(program validate.Program, capabilities *pathcap.Set, options Options) (
 			continue
 		}
 		entry.Error = &ResultError{Code: errorCode(err), Message: err.Error()}
-		switch txResult.Status {
-		case state.RolledBack:
-			entry.Status = RolledBack
-		case state.RecoveryFailed:
-			entry.Status = RecoveryFailed
-		default:
-			entry.Status = RecoveryRequired
+		if txResult.TransactionID == "" {
+			entry.Status = FailedPreflight
+		} else {
+			switch txResult.Status {
+			case state.RolledBack:
+				entry.Status = RolledBack
+			case state.RecoveryFailed:
+				entry.Status = RecoveryFailed
+			default:
+				entry.Status = RecoveryRequired
+			}
 		}
 		result.Transactions = append(result.Transactions, entry)
 		appendSkipped(&result, transactions[index+1:])
@@ -127,6 +132,8 @@ func errorCode(err error) string {
 		return recoveryError.Code
 	case errors.As(err, &planError):
 		return planError.Code
+	case errors.Is(err, os.ErrPermission):
+		return "E_PERMISSION"
 	default:
 		return "E_IO"
 	}

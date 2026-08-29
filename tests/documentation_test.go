@@ -137,7 +137,7 @@ func TestMarketingLocalLinksResolve(t *testing.T) {
 }
 
 func TestDocumentedCommandsExposeHelp(t *testing.T) {
-	commands := []string{"check", "plan", "run", "recover", "history", "inspect", "version", "capabilities", "schema"}
+	commands := []string{"check", "plan", "run", "recover", "history", "inspect", "version", "capabilities", "schema", "agent-guide"}
 	for _, command := range commands {
 		if code := (cli.App{Stdout: io.Discard, Stderr: io.Discard}).Run([]string{command, "--help"}); code != 0 {
 			t.Errorf("%s --help exit %d", command, code)

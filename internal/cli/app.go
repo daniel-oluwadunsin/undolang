@@ -69,8 +69,7 @@ func (a App) Run(args []string) int {
 	case "schema":
 		return a.schema(args[1:])
 	case "agent-guide":
-		fmt.Fprintln(a.Stdout, agentGuide)
-		return 0
+		return a.agentGuide(args[1:])
 	case "help", "--help", "-h":
 		fmt.Fprintln(a.Stdout, usage)
 		return 0
@@ -523,11 +522,31 @@ func (a App) interactive() bool {
 
 func jsonRequested(args []string) bool {
 	for _, arg := range args {
-		if arg == "--json" || arg == "-json" || strings.HasPrefix(arg, "--json=") {
+		if arg == "--json" || arg == "-json" || arg == "--json=true" || arg == "-json=true" {
 			return true
 		}
 	}
 	return false
+}
+
+func (a App) agentGuide(args []string) int {
+	if hasHelp(args) {
+		fmt.Fprintln(a.Stdout, "usage: undo agent-guide [--json]")
+		return 0
+	}
+	j, err := boolFlag(args)
+	if err != nil {
+		return a.err(jsonRequested(args), err)
+	}
+	if j {
+		return a.success(map[string]any{
+			"workflow": []string{"capabilities --json", "schema --json", "check FILE --json", "plan FILE --json", "run FILE --yes --json"},
+			"recovery": "on recovery_required, stop and run recover --root ROOT --yes --json",
+			"approval": "--json never grants mutation approval; pass --yes only after plan approval",
+		})
+	}
+	fmt.Fprintln(a.Stdout, agentGuide)
+	return 0
 }
 
 func boolFlag(args []string) (bool, error) {
@@ -655,7 +674,10 @@ func classifyError(err error) (*report.Error, int) {
 		}
 	case errors.As(err, &programError):
 		r.Code, r.Message = programError.Code, programError.Message
-		_, nestedCode := classifyError(programError.Cause)
+		nested, nestedCode := classifyError(programError.Cause)
+		if r.Code == "E_IO" || r.Code == "E_PERMISSION" || r.Code == "E_NO_SPACE" {
+			r.Code = nested.Code
+		}
 		code = nestedCode
 	case errors.Is(err, journal.ErrCorrupt):
 		r.Code, code = recovery.Corrupt, 6

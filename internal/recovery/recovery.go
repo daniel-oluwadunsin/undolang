@@ -109,22 +109,22 @@ func Recover(store *state.Store, id string, options Options) (result Result, ret
 			terminal = state.RolledBack
 		}
 		if err = tx.ReconcileStatus(terminal); err != nil {
-			return result, err
+			return terminalFail(result, id, "cannot reconcile terminal transaction status", err)
 		}
 		if !tx.Meta.BackupCleaned {
 			if err = tx.CleanupBackups(); err != nil {
-				return result, err
+				return terminalFail(result, id, "cannot clean terminal transaction backups", err)
 			}
 		}
 		if err = tx.Release(); err != nil {
-			return result, err
+			return terminalFail(result, id, "cannot release terminal transaction lock", err)
 		}
 		result.Status = terminal
 		return result, nil
 	}
 
 	if err = tx.ReconcileStatus(state.Status(replay.State)); err != nil {
-		return result, err
+		return fail(tx, result, "cannot reconcile transaction state from journal", err)
 	}
 	if tx.Meta.Status != state.RollingBack {
 		if err = tx.Transition(state.RollingBack); err != nil {
@@ -204,6 +204,11 @@ func Recover(store *state.Store, id string, options Options) (result Result, ret
 	}
 	result.Status = state.RolledBack
 	return result, nil
+}
+
+func terminalFail(result Result, id, message string, cause error) (Result, error) {
+	result.Status = state.RecoveryFailed
+	return result, &Error{Code: Failed, Message: message, TransactionID: id, Cause: cause}
 }
 
 func fail(tx *state.Transaction, result Result, message string, cause error) (Result, error) {

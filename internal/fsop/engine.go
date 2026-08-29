@@ -495,10 +495,12 @@ func (e *Engine) applyRenameMove(p *Prepared) error {
 		}
 	}
 	if err = root.Rename(p.Source.Relative, p.Target.Relative); err != nil {
-		if isCrossDevice(err) {
+		if p.PriorTarget.Present {
 			if restoreErr := e.restore(p.PriorTarget, p.Target, p.OperationID+"-target"); restoreErr != nil {
 				return errors.Join(err, restoreErr)
 			}
+		}
+		if isCrossDevice(err) {
 			p.Method = "copy-delete"
 			return e.applyCopy(p, true)
 		}
