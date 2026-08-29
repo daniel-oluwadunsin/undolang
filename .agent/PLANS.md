@@ -16,21 +16,22 @@ Codex must:
 
 ## Current Phase
 
-Phase 3 immutable planner and production read-only CLI.
+Phase 4 durable state, lock, transaction state machine, and journal.
 
 ## Completed
 
 - Phase 0: repository/bootstrap plan recorded.
 - Phase 1: Go 1.27 module, source spans, UTF-8 lexer, recursive-descent parser, ordered AST, semantic validator, spelling suggestions, and initial `check`/`version` entrypoint.
 - Phase 2: `os.Root` capability set, most-specific absolute mapping, reserved/escape policy, safe stat/open behavior, and bounded-memory contains/SHA-256 evaluation.
+- Phase 3: exact/deferred program planner, conservative conflict analysis, rollback estimates, `undo-cli/1` JSON envelopes, and production read-only CLI commands.
 
 ## In Progress
 
-- Implement exact/deferred planning, stable reports, and read-only CLI/JSON contracts.
+- Implement durable `.undo` state, UUIDv7 identities, exclusive locking, framed journal encoding/replay, and corruption handling.
 
 ## Next
 
-Phase 4: durable state, lock, transaction state machine, and framed journal.
+Phase 5: real reversible filesystem operations and streaming replacement.
 
 ## Decisions Made During Implementation
 
@@ -56,4 +57,6 @@ None blocking Phases 0-5.
 - Phase 1 `go list -m all`: one module (`github.com/daniel-oluwadunsin/undolang`).
 - Phase 2 offline tests, vet, and race detector: pass on macOS arm64.
 - Phase 2 module proof: one main module.
+- Phase 3 offline tests, vet, and race detector: pass on macOS arm64.
+- Phase 3 `check`/`plan` mutation snapshots and structured JSON contract tests: pass.
 - reproducible-build verification: not run
