@@ -1,39 +1,86 @@
 # UndoLang
 
-UndoLang is a Go 1.27, standard-library-only filesystem transaction language. The current implementation covers the language front-end, traversal-resistant path capabilities, streamed conditions, non-mutating planning, the durable journal/state foundation, and internal reversible filesystem primitives. Transaction execution is intentionally not exposed until the durable runner and recovery engine are wired in Phase 6.
+UndoLang is a Go 1.27, standard-library-only filesystem transaction runtime and small `.undo` DSL. It makes multi-file automation inspectable before execution and recoverable after known failure or process interruption.
+
+```text
+PLAN -> LOCK -> PREPARE -> JOURNAL -> APPLY -> VERIFY -> COMMIT
+                                             failure -> ROLLBACK
+```
+
+A `.undo` file is a program containing one or more named transactions. Each transaction is its own recoverable boundary. Whole-file execution is sequential and fail-fast: prior commits remain committed, the failing transaction rolls back, and later entries are skipped.
 
 ## Build
 
 ```sh
 go build -trimpath -buildvcs=false -o undo ./cmd/undo
+./undo version
 ```
 
-No runtime environment variables or API keys are required. `NO_COLOR` is accepted by convention; current output contains no ANSI color.
+The resulting binary has no runtime package, database, daemon, cloud, API-key, or environment-variable requirement. `NO_COLOR` is optional. The module contains no `require` block and no `go.sum`.
 
-## Read-only workflow
+Local convenience installers are available as `./install.sh` for macOS/Linux and `./install.ps1` for Windows. They copy an existing local binary or build the local source tree; they do not download packages or require administrator access.
+
+## First program
+
+```undolang
+transaction "upgrade" {
+  require contains "VERSION" "1"
+  copy "release/app" -> "bin/app" overwrite
+  write "VERSION" = "2"
+  assert contains "VERSION" "2"
+}
+```
 
 ```sh
 ./undo check migration.undo --root /target
 ./undo plan migration.undo --root /target
-./undo plan migration.undo --transaction upgrade --root /target --json
-./undo capabilities --json
-./undo schema --json
+./undo run migration.undo --root /target
+./undo run migration.undo --root /target --yes --json
 ```
 
-Relative DSL paths resolve against `--root`, or the invocation working directory when omitted. The script's own directory never becomes the root implicitly. Absolute paths outside the root require repeatable `--allow-path` directory capabilities.
+`run FILE` executes every transaction in source order. Add `--transaction NAME` to `plan` or `run` to select one. The entire source always validates before target mutation. Relative paths bind to `--root`, or invocation cwd when omitted; script location is independent. External absolute paths require repeatable `--allow-path` capabilities.
 
-A file may contain multiple named transactions. Whole-program planning preflights the first transaction and marks later state-sensitive work deferred. A selected transaction receives an exact current-state plan.
+If execution is interrupted:
+
+```sh
+./undo recover --root /target --yes
+./undo history --root /target
+./undo inspect TXID --root /target --json
+```
+
+Recovery validates the framed CRC32C journal and derives rollback from durable records. It repairs only an incomplete final frame after a valid prefix. Corrupt or ambiguous state fails closed and retains backups.
+
+## Commands
+
+| Command | Purpose |
+|---|---|
+| `check FILE` | Validate the complete program and path policy without target mutation. |
+| `plan FILE` | Report exact first/selected effects and deferred later readiness. |
+| `run FILE` | Execute selected/all transactions with journaling, verification, and rollback. |
+| `recover` | Resume rollback or reconcile a finalized stale lock. |
+| `history` / `inspect TXID` | Read local transaction audit metadata and validated journals. |
+| `capabilities --json` / `schema --json` | Discover the stable `undo-cli/1` agent contract. |
+
+Noninteractive and JSON mutation requires `--yes`; `--json` alone never grants approval.
+
+## Documentation and examples
+
+- [Language reference](docs/LANGUAGE.md)
+- [Programs, transactions, and recovery](docs/TRANSACTIONS.md)
+- [Security](docs/SECURITY.md)
+- [AI agent guide](docs/AGENTS_GUIDE.md)
+- [Support matrix](docs/SUPPORT_MATRIX.md)
+- [Examples](examples/)
+- [Static marketing/docs site](marketing/index.html)
 
 ## Current limitations
 
-- `run`, rollback orchestration, and crash recovery are not exposed yet.
-- Filesystem primitives remain internal and cannot be reached through a production CLI path before journal orchestration exists.
-- Planning, conditions, and filesystem operations use `os.Root` capability handles; mutation parents are rechecked and symlink parents are rejected.
+- UndoLang does not claim isolation or atomic visibility across a sequence of filesystem operations.
+- Platform rename and directory-sync durability differs. macOS arm64 is behavior-tested here; other release targets are cross-built only.
+- One active transaction is allowed per primary root. Separate roots with overlapping external capabilities can race.
 - Symlink entries may be moved or deleted and restored. Copying symlinks, dereferencing them for mutation, and special filesystem objects are unsupported.
-- Regular-file contents are copied, searched, hashed, and replaced with bounded buffers. Recursive trees preserve basic permission modes and empty directories.
-- Backups preserve contents, directories, symlink targets, and basic modes. ACLs, ownership, xattrs, sparse allocation, resource forks, alternate data streams, and hard-link identity are not preserved.
-- Files and temporary replacements are synced before installation and containing directories are synced where the host supports it. UndoLang does not claim atomic visibility, universal rename semantics, or identical durability guarantees across operating systems and filesystems.
-- Cross-capability moves use verified copy-then-delete. Same-capability rename falls back only for an explicitly recognized cross-device error; this fallback is compile-tested but requires a suitable multi-filesystem fixture for behavioral testing.
+- Basic modes are preserved where supported; ownership, ACLs, xattrs, timestamps, sparse allocation, resource forks, alternate streams, and hard-link identity are not.
+- Recovery handles the unresolved transaction only and does not automatically resume later program entries.
 
 ## Verification
 
@@ -43,3 +90,5 @@ GOPROXY=off go vet ./...
 GOPROXY=off go test -race ./...
 go list -m all
 ```
+
+See `docs/IMPLEMENTATION_REPORT.md` for final evidence and platform qualifications.

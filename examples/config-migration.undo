@@ -1,0 +1,9 @@
+transaction "migrate-config" {
+  require is_file "app.conf"
+  require contains "app.conf" "schema=v1"
+  replace "app.conf" "schema=v1" -> "schema=v2"
+  copy "defaults-v2.conf" -> "defaults.conf" overwrite
+  assert contains "app.conf" "schema=v2"
+  assert is_file "defaults.conf"
+}
+

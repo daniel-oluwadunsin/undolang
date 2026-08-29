@@ -1,0 +1,15 @@
+# Upgrade an installed application in two independent rollback boundaries.
+transaction "stage" {
+  require is_file "release/app-v2"
+  mkdir "staging/v2"
+  copy "release/app-v2" -> "staging/v2/app"
+  assert is_file "staging/v2/app"
+}
+
+transaction "activate" {
+  require is_file "staging/v2/app"
+  copy "staging/v2/app" -> "bin/app" overwrite
+  write "VERSION" = "2"
+  assert contains "VERSION" "2"
+}
+

@@ -1,0 +1,14 @@
+transaction "prepare-v2-layout" {
+  require is_dir "data/v1"
+  mkdir "data/v2/archive"
+  copy "data/v1/accounts" -> "data/v2/accounts"
+  write "data/v2/SCHEMA" = "2"
+  assert contains "data/v2/SCHEMA" "2"
+}
+
+transaction "retire-v1" {
+  require is_file "data/v2/SCHEMA"
+  delete "data/v1"
+  assert not_exists "data/v1"
+}
+
