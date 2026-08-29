@@ -270,6 +270,7 @@ func staticOperations(tx validate.Transaction, caps *pathcap.Set) ([]PlannedOper
 
 type node struct {
 	exists, synthetic bool
+	unstable          bool
 	mode              fs.FileMode
 	size, entries     int64
 	bytes             int64
@@ -283,6 +284,22 @@ func newOverlay(c *pathcap.Set) *overlay { return &overlay{caps: c, values: make
 func (o *overlay) get(p pathcap.ResolvedPath) (node, error) {
 	if n, ok := o.values[p.Absolute]; ok {
 		return n, nil
+	}
+	for parent := filepath.Dir(p.Absolute); parent != p.Absolute; parent = filepath.Dir(parent) {
+		if n, ok := o.values[parent]; ok && n.synthetic {
+			if !n.exists {
+				return node{}, nil
+			}
+			if n.unstable {
+				return node{}, &Error{Code: Conflict, Message: "path is beneath a directory changed earlier in the transaction"}
+			}
+			// A directory created earlier cannot contain an unrecorded disk entry.
+			return node{}, nil
+		}
+		next := filepath.Dir(parent)
+		if next == parent {
+			break
+		}
 	}
 	info, err := o.caps.Lstat(p)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -371,6 +388,9 @@ func exactOperation(index int, op ast.Statement, state *overlay, mutated map[str
 		if target.Relative == "." {
 			return p, &Error{Code: Conflict, Message: "cannot delete capability root"}
 		}
+		if state.hasChangedDescendant(target.Absolute) {
+			return p, &Error{Code: Conflict, Message: "delete overlaps a path changed earlier in the transaction"}
+		}
 		if !supported(current.mode, true) {
 			return p, &Error{Code: UnsupportedFileType, Message: "unsupported delete target"}
 		}
@@ -381,7 +401,7 @@ func exactOperation(index int, op ast.Statement, state *overlay, mutated map[str
 				return p, err
 			}
 		}
-		state.set(target, node{})
+		state.set(target, node{synthetic: true})
 		mutated[target.Absolute] = true
 	}
 	return p, nil
@@ -419,8 +439,11 @@ func exactTransfer(p PlannedOperation, op ast.Statement, state *overlay, mutated
 	if src.Absolute == dst.Absolute {
 		return p, &Error{Code: Conflict, Message: "source and destination are identical"}
 	}
-	if descendant(dst.Absolute, src.Absolute) {
+	if descendant(dst.Absolute, src.Absolute) || descendant(src.Absolute, dst.Absolute) {
 		return p, &Error{Code: Conflict, Message: "cannot copy or move a directory into itself"}
+	}
+	if state.hasChangedDescendant(src.Absolute) || state.hasChangedDescendant(dst.Absolute) {
+		return p, &Error{Code: Conflict, Message: "transfer overlaps a path changed earlier in the transaction"}
 	}
 	if mutated[dst.Absolute] {
 		return p, &Error{Code: Conflict, Message: "multiple mutations target " + dst.Original}
@@ -469,10 +492,12 @@ func exactTransfer(p PlannedOperation, op ast.Statement, state *overlay, mutated
 	} else {
 		p.Effect = EffectCreate
 	}
+	source.synthetic = true
+	source.unstable = source.mode.IsDir()
 	state.set(dst, source)
 	mutated[dst.Absolute] = true
 	if op.Kind == ast.Move {
-		state.set(src, node{})
+		state.set(src, node{synthetic: true})
 		mutated[src.Absolute] = true
 	}
 	return p, nil
@@ -490,7 +515,19 @@ func requireParent(state *overlay, path pathcap.ResolvedPath) error {
 	if !n.exists || !n.mode.IsDir() {
 		return &Error{Code: SourceMissing, Message: "destination parent does not exist or is not a directory"}
 	}
+	if n.unstable {
+		return &Error{Code: Conflict, Message: "destination parent was changed earlier in the transaction"}
+	}
 	return nil
+}
+
+func (o *overlay) hasChangedDescendant(path string) bool {
+	for candidate, n := range o.values {
+		if n.synthetic && descendant(candidate, path) {
+			return true
+		}
+	}
+	return false
 }
 
 func descendant(path, parent string) bool {

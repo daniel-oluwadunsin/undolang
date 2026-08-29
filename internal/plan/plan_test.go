@@ -72,10 +72,39 @@ func TestPlannerConflicts(t *testing.T) {
 		`transaction "x" { copy "a" -> "a" }`,
 		`transaction "x" { copy "a" -> "b" copy "a" -> "b" }`,
 		`transaction "x" { delete "missing" }`,
+		`transaction "x" { mkdir "dir" move "dir" -> "dir/child" }`,
 	}
 	for _, src := range tests {
 		if _, err := buildSource(t, root, src, ""); err == nil {
 			t.Fatalf("expected conflict for %s", src)
 		}
+	}
+}
+
+func TestPlannerRejectsUseAfterParentMoveOrDelete(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "tree"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "tree", "child"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, source := range []string{
+		`transaction "x" { move "tree" -> "moved" copy "tree/child" -> "copy" }`,
+		`transaction "x" { delete "tree" copy "tree/child" -> "copy" }`,
+		`transaction "x" { write "tree/child" = "changed" delete "tree" }`,
+		`transaction "x" { move "tree/child" -> "moved-child" copy "tree" -> "tree-copy" }`,
+	} {
+		if _, err := buildSource(t, root, source, ""); err == nil {
+			t.Fatalf("expected overlap rejection for %s", source)
+		}
+	}
+}
+
+func TestPlannerAllowsMkdirThenWriteChild(t *testing.T) {
+	root := t.TempDir()
+	result, err := buildSource(t, root, `transaction "x" { mkdir "new/parent" write "new/parent/file" = "x" }`, "")
+	if err != nil || !result.SafeToStart {
+		t.Fatalf("result=%#v err=%v", result, err)
 	}
 }
