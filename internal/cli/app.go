@@ -286,8 +286,25 @@ func (a App) run(args []string) int {
 			return a.failure(c.json, &report.Error{Code: "E_APPROVAL_REQUIRED", Message: "noninteractive mutation requires --yes"}, 1)
 		}
 		fmt.Fprintf(a.Stdout, "program: %s\nroot: %s\ntransactions: %d\n", scriptPath, caps.Primary(), len(preview.Transactions))
+		for _, root := range caps.Roots() {
+			kind := "allowed"
+			if root.Primary {
+				kind = "primary"
+			}
+			fmt.Fprintf(a.Stdout, "capability (%s): %s\n", kind, root.Path)
+		}
 		for _, transaction := range preview.Transactions {
 			fmt.Fprintf(a.Stdout, "  %s: %s\n", transaction.Name, transaction.Readiness)
+			if transaction.Plan != nil {
+				fmt.Fprintf(a.Stdout, "    rollback estimate: %d bytes\n", transaction.Plan.Summary.RollbackBytes)
+				for _, operation := range transaction.Plan.Operations {
+					fmt.Fprintf(a.Stdout, "    %s %s (%s)\n", operation.Kind, operation.Target.Original, operation.Effect)
+				}
+			} else {
+				for _, operation := range transaction.Operations {
+					fmt.Fprintf(a.Stdout, "    %s %s (deferred)\n", operation.Kind, operation.Target.Original)
+				}
+			}
 		}
 		fmt.Fprint(a.Stdout, "Execute this program? [y/N] ")
 		var answer string
@@ -552,7 +569,7 @@ func (a App) capabilities(args []string) int {
 	if err != nil {
 		return a.err(false, err)
 	}
-	result := map[string]any{"cli_version": buildinfo.Version, "dsl_version": buildinfo.DSLVersion, "api_version": buildinfo.APIVersion, "operations": []string{"mkdir", "copy", "move", "write", "replace", "delete"}, "conditions": []string{"exists", "not_exists", "is_file", "is_dir", "contains", "sha256"}, "commands": []string{"check", "plan", "run", "recover", "history", "inspect", "version", "capabilities", "schema", "agent-guide"}, "path_model": "relative paths bind to --root/cwd; external absolute paths require --allow-path", "approval": "noninteractive mutation requires --yes", "transaction_model": "source-order, fail-fast, one recoverable transaction boundary per named transaction"}
+	result := map[string]any{"cli_version": buildinfo.Version, "dsl_version": buildinfo.DSLVersion, "api_version": buildinfo.APIVersion, "operations": []string{"mkdir", "copy", "move", "write", "replace", "delete"}, "operation_contracts": map[string]any{"mkdir": operationSchema("mkdir PATH", true, false, `mkdir "cache/data"`), "copy": operationSchema("copy SOURCE -> TARGET [overwrite]", true, true, `copy "a" -> "b" overwrite`), "move": operationSchema("move SOURCE -> TARGET [overwrite]", true, true, `move "a" -> "b"`), "write": operationSchema("write PATH = STRING", true, true, `write "VERSION" = "2"`), "replace": operationSchema("replace PATH OLD -> NEW", true, true, `replace "config" "v1" -> "v2"`), "delete": operationSchema("delete PATH", true, true, `delete "obsolete"`)}, "conditions": []string{"exists", "not_exists", "is_file", "is_dir", "contains", "sha256"}, "commands": []string{"check", "plan", "run", "recover", "history", "inspect", "version", "capabilities", "schema", "agent-guide"}, "path_model": "relative paths bind to --root/cwd; external absolute paths require --allow-path", "approval": "noninteractive or JSON mutation requires --yes", "recovery_classifications": []string{"committed", "rolled_back", "recovery_required", "recovery_failed", "journal_corrupt"}, "transaction_model": "source-order, fail-fast, one recoverable transaction boundary per named transaction"}
 	if j {
 		return a.success(result)
 	}
@@ -569,7 +586,7 @@ func (a App) schema(args []string) int {
 	if err != nil {
 		return a.err(false, err)
 	}
-	result := map[string]any{"dsl_version": buildinfo.DSLVersion, "api_version": buildinfo.APIVersion, "transaction": map[string]any{"syntax": "transaction STRING { require* mutation* assert* }", "rollback_boundary": true}, "operations": map[string]any{"mkdir": operationSchema("mkdir PATH", true, false, `mkdir "cache/data"`), "copy": operationSchema("copy SOURCE -> TARGET [overwrite]", true, true, `copy "config.new" -> "config" overwrite`), "move": operationSchema("move SOURCE -> TARGET [overwrite]", true, true, `move "old" -> "new"`), "write": operationSchema("write PATH = STRING", true, true, `write "VERSION" = "2"`), "replace": operationSchema("replace PATH OLD -> NEW", true, true, `replace "app.conf" "v1" -> "v2"`), "delete": operationSchema("delete PATH", true, true, `delete "obsolete"`)}, "conditions": map[string]any{"exists": conditionSchema("exists PATH"), "not_exists": conditionSchema("not_exists PATH"), "is_file": conditionSchema("is_file PATH"), "is_dir": conditionSchema("is_dir PATH"), "contains": conditionSchema("contains PATH TEXT"), "sha256": conditionSchema("sha256 PATH = HEX")}}
+	result := map[string]any{"version": buildinfo.Version, "dsl_version": buildinfo.DSLVersion, "api_version": buildinfo.APIVersion, "transaction": map[string]any{"syntax": "transaction STRING { require* mutation* assert* }", "rollback_boundary": true, "program_execution": "source order and fail fast; earlier commits remain committed"}, "operations": map[string]any{"mkdir": operationSchema("mkdir PATH", true, false, `mkdir "cache/data"`), "copy": operationSchema("copy SOURCE -> TARGET [overwrite]", true, true, `copy "config.new" -> "config" overwrite`), "move": operationSchema("move SOURCE -> TARGET [overwrite]", true, true, `move "old" -> "new"`), "write": operationSchema("write PATH = STRING", true, true, `write "VERSION" = "2"`), "replace": operationSchema("replace PATH OLD -> NEW", true, true, `replace "app.conf" "v1" -> "v2"`), "delete": operationSchema("delete PATH", true, true, `delete "obsolete"`)}, "conditions": map[string]any{"exists": conditionSchema("exists PATH"), "not_exists": conditionSchema("not_exists PATH"), "is_file": conditionSchema("is_file PATH"), "is_dir": conditionSchema("is_dir PATH"), "contains": conditionSchema("contains PATH TEXT"), "sha256": conditionSchema("sha256 PATH = HEX")}, "workflow": []string{"capabilities --json", "schema --json", "check FILE --json", "plan FILE --json", "run FILE --yes --json", "recover --root ROOT --yes --json"}, "approval": map[string]any{"mutating_commands": []string{"run", "recover"}, "noninteractive_flag": "--yes", "json_grants_approval": false}, "result_statuses": []string{"committed", "rolled_back", "failed_preflight", "recovery_required", "recovery_failed", "skipped"}, "exit_codes": map[string]int{"success": 0, "usage_language_approval": 1, "unsafe_plan": 2, "path_conflict_io": 3, "rolled_back": 4, "recovery_required": 5, "recovery_or_journal_failure": 6, "internal": 7}}
 	if j {
 		return a.success(result)
 	}
@@ -618,6 +635,11 @@ func classifyError(err error) (*report.Error, int) {
 		r.Code, r.Message, code = planError.Code, planError.Message, 2
 	case errors.As(err, &transactionError):
 		r.Code, r.Message, r.TransactionID = transactionError.Code, transactionError.Message, transactionError.TransactionID
+		if errors.Is(transactionError.Cause, os.ErrPermission) {
+			r.Code = "E_PERMISSION"
+		} else if isNoSpace(transactionError.Cause) {
+			r.Code = "E_NO_SPACE"
+		}
 		if transactionError.RolledBack {
 			code = 4
 		} else {
@@ -639,6 +661,8 @@ func classifyError(err error) (*report.Error, int) {
 		r.Code, code = recovery.Corrupt, 6
 	case errors.Is(err, os.ErrPermission):
 		r.Code = "E_PERMISSION"
+	case isNoSpace(err):
+		r.Code = "E_NO_SPACE"
 	}
 	return r, code
 }

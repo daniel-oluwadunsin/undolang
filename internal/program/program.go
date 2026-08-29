@@ -24,11 +24,15 @@ const (
 )
 
 type TransactionResult struct {
-	Name          string `json:"name"`
-	TransactionID string `json:"transaction_id,omitempty"`
-	Status        Status `json:"status"`
-	ErrorCode     string `json:"error_code,omitempty"`
-	Message       string `json:"message,omitempty"`
+	Name          string       `json:"name"`
+	TransactionID string       `json:"transaction_id,omitempty"`
+	Status        Status       `json:"status"`
+	Error         *ResultError `json:"error,omitempty"`
+}
+
+type ResultError struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
 }
 
 type Result struct {
@@ -71,17 +75,17 @@ func Run(program validate.Program, capabilities *pathcap.Set, options Options) (
 	for index, transaction := range transactions {
 		exact, err := plan.Build(validate.Program{Transactions: []validate.Transaction{transaction}}, capabilities, plan.Options{ScriptPath: options.ScriptPath, ScriptSHA256: options.ScriptSHA256})
 		if err != nil {
-			failed := TransactionResult{Name: transaction.Name, Status: FailedPreflight, ErrorCode: errorCode(err), Message: err.Error()}
+			failed := TransactionResult{Name: transaction.Name, Status: FailedPreflight, Error: &ResultError{Code: errorCode(err), Message: err.Error()}}
 			result.Transactions = append(result.Transactions, failed)
 			appendSkipped(&result, transactions[index+1:])
-			return result, &Error{Code: failed.ErrorCode, Message: "transaction planning failed", Cause: err}
+			return result, &Error{Code: failed.Error.Code, Message: "transaction planning failed", Cause: err}
 		}
 		transactionPlan := exact.Transactions[0].Plan
 		if transactionPlan == nil || !transactionPlan.SafeToExecute {
-			failed := TransactionResult{Name: transaction.Name, Status: FailedPreflight, ErrorCode: txn.PreconditionFailed, Message: "transaction precondition failed"}
+			failed := TransactionResult{Name: transaction.Name, Status: FailedPreflight, Error: &ResultError{Code: txn.PreconditionFailed, Message: "transaction precondition failed"}}
 			result.Transactions = append(result.Transactions, failed)
 			appendSkipped(&result, transactions[index+1:])
-			return result, &Error{Code: txn.PreconditionFailed, Message: failed.Message}
+			return result, &Error{Code: txn.PreconditionFailed, Message: failed.Error.Message}
 		}
 		txResult, err := txn.Execute(transaction, capabilities, txn.Options{ScriptPath: options.ScriptPath, ScriptSHA256: options.ScriptSHA256, Checkpoint: options.Checkpoint})
 		entry := TransactionResult{Name: transaction.Name, TransactionID: txResult.TransactionID}
@@ -90,7 +94,7 @@ func Run(program validate.Program, capabilities *pathcap.Set, options Options) (
 			result.Transactions = append(result.Transactions, entry)
 			continue
 		}
-		entry.ErrorCode, entry.Message = errorCode(err), err.Error()
+		entry.Error = &ResultError{Code: errorCode(err), Message: err.Error()}
 		switch txResult.Status {
 		case state.RolledBack:
 			entry.Status = RolledBack
@@ -101,14 +105,14 @@ func Run(program validate.Program, capabilities *pathcap.Set, options Options) (
 		}
 		result.Transactions = append(result.Transactions, entry)
 		appendSkipped(&result, transactions[index+1:])
-		return result, &Error{Code: entry.ErrorCode, Message: "transaction did not commit", Cause: err}
+		return result, &Error{Code: entry.Error.Code, Message: "transaction did not commit", Cause: err}
 	}
 	return result, nil
 }
 
 func appendSkipped(result *Result, transactions []validate.Transaction) {
 	for _, transaction := range transactions {
-		result.Transactions = append(result.Transactions, TransactionResult{Name: transaction.Name, Status: Skipped, Message: "not started after prior transaction failure"})
+		result.Transactions = append(result.Transactions, TransactionResult{Name: transaction.Name, Status: Skipped, Error: &ResultError{Code: "E_SKIPPED", Message: "not started after prior transaction failure"}})
 	}
 }
 

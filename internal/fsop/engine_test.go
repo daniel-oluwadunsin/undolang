@@ -336,6 +336,57 @@ func TestMutationRejectsSymlinkParent(t *testing.T) {
 	}
 }
 
+func TestParentSymlinkSwapAfterPrepareCannotEscapeRoot(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink creation commonly requires privileges on Windows")
+	}
+	f := newFixture(t)
+	parent := filepath.Join(f.root, "parent")
+	if err := os.Mkdir(parent, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	op := ast.Statement{Kind: ast.Write, Path: "parent/file", Content: "unsafe"}
+	prepared, err := f.engine.Prepare("parent-swap", op)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = os.Remove(parent); err != nil {
+		t.Fatal(err)
+	}
+	if err = os.Symlink(f.other, parent); err != nil {
+		t.Fatal(err)
+	}
+	if err = f.engine.Apply(&prepared, op); err == nil {
+		t.Fatal("mutation followed a swapped symlink parent")
+	}
+	if _, err = os.Stat(filepath.Join(f.other, "file")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("mutation escaped the root: %v", err)
+	}
+}
+
+func TestHardLinkContentsRestoreButIdentityIsOutsideGuarantee(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("hard-link behavior is documented from the tested Unix host")
+	}
+	f := newFixture(t)
+	f.write("original", "before", 0o600)
+	if err := os.Link(filepath.Join(f.root, "original"), filepath.Join(f.root, "linked")); err != nil {
+		t.Skipf("hard links unavailable: %v", err)
+	}
+	op := ast.Statement{Kind: ast.Write, Path: "linked", Content: "after"}
+	prepared := execute(t, f.engine, "hard-link", op)
+	if err := f.engine.Undo(&prepared); err != nil {
+		t.Fatal(err)
+	}
+	mustContent(t, filepath.Join(f.root, "original"), "before")
+	mustContent(t, filepath.Join(f.root, "linked"), "before")
+	original, _ := os.Stat(filepath.Join(f.root, "original"))
+	linked, _ := os.Stat(filepath.Join(f.root, "linked"))
+	if os.SameFile(original, linked) {
+		t.Fatal("test expected the documented hard-link topology limitation")
+	}
+}
+
 func TestRollbackFailsClosedOnExternalChange(t *testing.T) {
 	f := newFixture(t)
 	op := ast.Statement{Kind: ast.Write, Path: "file", Content: "applied"}

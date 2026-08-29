@@ -5,6 +5,7 @@ import (
 	json "encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -88,6 +89,24 @@ func TestAgentContracts(t *testing.T) {
 	}
 }
 
+func TestSchemaDescribesApprovalRecoveryAndExitContracts(t *testing.T) {
+	code, output, stderr := invoke("schema", "--json")
+	if code != 0 || stderr != "" {
+		t.Fatalf("code=%d stderr=%s", code, stderr)
+	}
+	var envelope struct {
+		Result map[string]any `json:"result"`
+	}
+	if err := json.Unmarshal([]byte(output), &envelope); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"workflow", "approval", "result_statuses", "exit_codes", "operations", "conditions"} {
+		if _, ok := envelope.Result[key]; !ok {
+			t.Errorf("schema omits %q", key)
+		}
+	}
+}
+
 func TestJSONErrorDoesNotPolluteStdout(t *testing.T) {
 	code, stdout, stderr := invoke("check", "missing.undo", "--json")
 	if code == 0 || stderr != "" {
@@ -153,6 +172,43 @@ func TestInteractiveConfirmation(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, "created")); err != nil {
 		t.Fatal(err)
+	}
+	for _, required := range []string{"capability (primary):", "rollback estimate:", "write created (create)"} {
+		if !strings.Contains(stdout.String(), required) {
+			t.Errorf("interactive summary omits %q: %s", required, stdout.String())
+		}
+	}
+}
+
+func TestJSONEscapesNamesAndDoesNotLeakTargetContents(t *testing.T) {
+	root := t.TempDir()
+	secret := "prefix-PRIVATE-CONTENT-MUST-NOT-LEAK"
+	if err := os.WriteFile(filepath.Join(root, "secret"), []byte(secret), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	script := filepath.Join(t.TempDir(), "odd.undo")
+	if err := os.WriteFile(script, []byte("transaction \"odd\\n\\\"name\" { require contains \"secret\" \"prefix\" }"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	code, output, stderr := invoke("plan", script, "--root", root, "--json")
+	if code != 0 || stderr != "" {
+		t.Fatalf("code=%d output=%s stderr=%s", code, output, stderr)
+	}
+	if strings.Contains(output, secret) {
+		t.Fatal("plan JSON disclosed target file contents")
+	}
+	var envelope struct {
+		Result struct {
+			Transactions []struct {
+				Name string `json:"name"`
+			} `json:"transactions"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal([]byte(output), &envelope); err != nil {
+		t.Fatal(err)
+	}
+	if got := envelope.Result.Transactions[0].Name; got != "odd\n\"name" {
+		t.Fatalf("transaction name=%q", got)
 	}
 }
 
