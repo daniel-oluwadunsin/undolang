@@ -9,7 +9,7 @@ require      = "require" condition
 assert       = "assert" condition
 ```
 
-Statements preserve source order. `require` statements must come first, followed by mutations, followed by `assert` statements. Comments begin with `#` or `//` and continue to the end of the line.
+Statements preserve source order. `require` statements must come first, followed by mutations, followed by `assert` statements. Comments begin with `#` and continue to the end of the line.
 
 ## Strings and paths
 
@@ -36,7 +36,7 @@ Paths never interpolate environment variables. Relative paths bind to the transa
 
 ## Conditions
 
-Conditions are `exists PATH`, `not_exists PATH`, `is_file PATH`, `is_dir PATH`, `contains PATH TEXT`, and `sha256 PATH = HEX`. `contains` and SHA-256 stream with bounded memory. SHA-256 values contain exactly 64 hexadecimal characters and empty `contains` needles are invalid.
+Conditions are `exists PATH`, `not_exists PATH`, `is_file PATH`, `is_dir PATH`, `contains PATH TEXT`, and `sha256 PATH = HEX`. `contains` and SHA-256 stream with bounded memory. SHA-256 values contain exactly 64 hexadecimal characters and empty `contains` needles are invalid. `exists`/`not_exists` inspect a symlink entry itself; `is_file` and `is_dir` return false for symlinks; content conditions refuse to dereference symlink targets.
 
 ## Program example
 
@@ -48,4 +48,3 @@ transaction "upgrade" {
   assert contains "VERSION" "2"
 }
 ```
-

@@ -8,7 +8,7 @@ The language has no shell execution, imports, plugins, package loading, networki
 
 ## Filesystem objects
 
-Regular files and directories are supported. Moving and deleting a symlink operates on the link entry. Symlink copying, FIFOs, sockets, devices, and unsafe platform-specific reparse objects are rejected.
+Regular files and directories are supported. Moving and deleting a symlink operates on the link entry, including when its target is external or reserved; the target is never changed. Content/type conditions do not dereference symlinks. Symlink copying, FIFOs, sockets, devices, and unsafe platform-specific reparse objects are rejected.
 
 Basic permission bits are preserved where supported. Ownership, ACLs, xattrs, SELinux labels, sparse allocation, resource forks, alternate streams, timestamps, and hard-link identity are outside the v1 guarantee.
 
@@ -19,4 +19,3 @@ Only one active transaction is allowed per primary root. Separate roots with ove
 ## Sensitive workloads
 
 Backups live under the protected root in `.undo/transactions/<txid>/backup` with restrictive modes where supported. They are removed only after a verified commit or rollback and retained after corruption or recovery failure. Users requiring exact metadata or confidentiality guarantees beyond local filesystem permissions should use a platform-native snapshot/security facility instead.
-

@@ -123,3 +123,55 @@ transaction "two" { write "two" = "2" }
 		t.Fatalf("unselected transaction ran: %v", err)
 	}
 }
+
+func TestLaterRealOperationFailureRollsBackOnlyCurrentAndSkipsRest(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "source"), []byte("source"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	caps, err := pathcap.Open(root, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer caps.Close()
+	parsed, diagnostic := frontend.Parse([]byte(`
+transaction "first" { write "committed" = "yes" }
+transaction "second" { write "temporary" = "remove-me" copy "source" -> "collision" }
+transaction "third" { write "skipped" = "yes" }
+`))
+	if diagnostic != nil {
+		t.Fatal(diagnostic)
+	}
+	applied := 0
+	result, err := Run(parsed, caps, Options{ScriptPath: "test.undo", ScriptSHA256: "hash", Checkpoint: func(point string) {
+		if point != "op_applied" {
+			return
+		}
+		applied++
+		if applied == 2 {
+			if writeErr := os.WriteFile(filepath.Join(root, "collision"), []byte("external"), 0o600); writeErr != nil {
+				t.Errorf("inject destination race: %v", writeErr)
+			}
+		}
+	}})
+	if err == nil {
+		t.Fatal("expected real destination race failure")
+	}
+	if got := result.Transactions; len(got) != 3 || got[0].Status != Committed || got[1].Status != RolledBack || got[2].Status != Skipped {
+		t.Fatalf("result=%#v", result)
+	}
+	mustExistWithContent := func(name, want string) {
+		t.Helper()
+		content, readErr := os.ReadFile(filepath.Join(root, name))
+		if readErr != nil || string(content) != want {
+			t.Fatalf("%s=%q err=%v", name, content, readErr)
+		}
+	}
+	mustExistWithContent("committed", "yes")
+	mustExistWithContent("collision", "external")
+	for _, name := range []string{"temporary", "skipped"} {
+		if _, statErr := os.Stat(filepath.Join(root, name)); !errors.Is(statErr, os.ErrNotExist) {
+			t.Fatalf("%s unexpectedly exists: %v", name, statErr)
+		}
+	}
+}
