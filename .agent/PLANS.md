@@ -16,7 +16,7 @@ Codex must:
 
 ## Current Phase
 
-Phase 4 durable state, lock, transaction state machine, and journal.
+Phase 5 real reversible filesystem primitives.
 
 ## Completed
 
@@ -24,14 +24,15 @@ Phase 4 durable state, lock, transaction state machine, and journal.
 - Phase 1: Go 1.27 module, source spans, UTF-8 lexer, recursive-descent parser, ordered AST, semantic validator, spelling suggestions, and initial `check`/`version` entrypoint.
 - Phase 2: `os.Root` capability set, most-specific absolute mapping, reserved/escape policy, safe stat/open behavior, and bounded-memory contains/SHA-256 evaluation.
 - Phase 3: exact/deferred program planner, conservative conflict analysis, rollback estimates, `undo-cli/1` JSON envelopes, and production read-only CLI commands.
+- Phase 4: restrictive `.undo` layout, UUIDv7 metadata, exclusive active lock, validated state transitions, synced atomic status writes, CRC32C framed journal, strict replay, torn-tail detection, and history/inspection foundations.
 
 ## In Progress
 
-- Implement durable `.undo` state, UUIDv7 identities, exclusive locking, framed journal encoding/replay, and corruption handling.
+- Implement prepare/apply/verify/undo filesystem primitives, backups, streaming copy/replace, mode preservation, and explicit file-type policies.
 
 ## Next
 
-Phase 5: real reversible filesystem operations and streaming replacement.
+Phase 6 (not authorized in this run): production transaction runner, rollback orchestration, and recovery.
 
 ## Decisions Made During Implementation
 
@@ -59,4 +60,6 @@ None blocking Phases 0-5.
 - Phase 2 module proof: one main module.
 - Phase 3 offline tests, vet, and race detector: pass on macOS arm64.
 - Phase 3 `check`/`plan` mutation snapshots and structured JSON contract tests: pass.
+- Phase 4 offline tests, vet, and race detector: pass on macOS arm64.
+- Phase 4 journal corruption/torn-tail/reference tests and state lock lifecycle tests: pass.
 - reproducible-build verification: not run
