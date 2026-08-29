@@ -296,9 +296,9 @@ Run all gates and report.
 ## Prompt 8 — Static marketing site and full documentation
 
 ```text
-Proceed with Phase 8: build the zero-dependency static landing page/docs and synchronize all public docs with real implemented behavior.
+Proceed with Phase 8: build the zero-dependency static landing page and docs pages and synchronize all public docs with real implemented behavior.
 
-Read MARKETING_AND_DOCS_SPEC.md, PRD marketing requirements, current README/docs, actual CLI help/schema, and AGENTS.md. Update the ExecPlan.
+Read docs/MARKETING_AND_DOCS_SPEC.md, PRD marketing requirements, current README/docs, actual CLI help/schema, docs/DESIGN.md and AGENTS.md. Update the ExecPlan.
 
 Hard rule: marketing/ uses only hand-written HTML, CSS, and vanilla browser JavaScript. No npm, package.json, React, Next.js, Tailwind, Vite, CDN libraries, external font dependencies, analytics, or cloud API required for viewing.
 
@@ -312,6 +312,13 @@ Implement:
 - no fake playground unless it executes the real language semantics; do not duplicate a toy parser that can drift from Go runtime;
 - README with build/run/limits/track rationale;
 - docs/SUPPORT_MATRIX.md based only on actually tested platforms.
+- the docs pages should be like popular documentation pages that are well-designed and easy to navigate. i should be able to go to a specific section and understand it quickly.
+- the docs should be well detailed, from understanding installation and setup guide for all platforms (windows, linux and mac), to understanding each syntaxses, commands, file structure, etc. to examples and using it in real world scenarios.
+- for the examples, i want there to be multiple examples that showcase different use cases of the language.
+- it should also have places talking about how best agents can understand it
+- there should also be a copy context to agent button for the agent to understand the full docs at once.
+- example .undo files should be formatted well and easy to understand.
+
 
 Audit every marketing claim against tests/code. Run relevant CLI tests again after docs examples are added, and if practical add tests that parse example .undo files from docs/examples.
 
