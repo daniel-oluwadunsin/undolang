@@ -1,7 +1,0 @@
-transaction "remove-generated-state" {
-  require is_dir "build/cache"
-  delete "build/cache"
-  write "build/CACHE_STATUS" = "cache removed"
-  assert not_exists "build/cache"
-  assert contains "build/CACHE_STATUS" "removed"
-}

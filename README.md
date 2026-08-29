@@ -90,7 +90,7 @@ Noninteractive and JSON mutation requires `--yes`; `--json` alone never grants a
 - [Security](docs/SECURITY.md)
 - [AI agent guide](docs/AGENTS_GUIDE.md)
 - [Support matrix](docs/SUPPORT_MATRIX.md)
-- [Examples](examples/)
+- [Live filesystem examples](examples/live-filesystem.undo) (one program, selectable transactions)
 - [Static marketing/docs site](marketing/index.html)
 - [Standard-library substitutions](STDLIB.md)
 - [Five-minute demo runbook](docs/DEMO_RUNBOOK.md)

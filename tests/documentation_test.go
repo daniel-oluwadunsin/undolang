@@ -24,7 +24,7 @@ func repositoryRoot(t *testing.T) string {
 
 func TestEveryExampleParses(t *testing.T) {
 	files, err := filepath.Glob(filepath.Join(repositoryRoot(t), "examples", "*.undo"))
-	if err != nil || len(files) < 5 {
+	if err != nil || len(files) == 0 {
 		t.Fatalf("examples=%v err=%v", files, err)
 	}
 	for _, file := range files {

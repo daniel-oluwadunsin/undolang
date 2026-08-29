@@ -120,6 +120,7 @@ None blocking Phases 0-5.
 - Installer bootstrap update: shell syntax/help and documentation were updated for the verified Go 1.27.0 user-local bootstrap; PowerShell execution remains untested on this macOS host.
 - Reproducible-build UX update: `make reproducible-build` is the canonical one-command bonus proof; it builds twice with the pinned offline settings, labels both SHA-256 values, and retains `make repro` as an alias.
 - Reproducible-build UX verification: `make reproducible-build` passed twice on macOS arm64; Build A and Build B both printed `6a7b1ba6a62e911d4ab93759a9809615efda8369d7347a5e562bc7d336771d2d`, and the helper reported byte-identical output.
+- Live example update: replaced the abstract multi-file example set with one parser-valid `examples/live-filesystem.undo` program containing selectable seed, upgrade, overwrite, move/delete, rollback, missing-source, permission, and fail-fast transactions; mirrored it to `~/Desktop/undolang-examples` with a disposable-root README.
 - Final usability handoff verification: `make help`, `make build`, `make test`,
   `make vet`, `make race`, `make examples`, `make modules`, `make verify`,
   `make fuzz`, `make stress`, `make crash-test`, `make deps-proof`, and `make

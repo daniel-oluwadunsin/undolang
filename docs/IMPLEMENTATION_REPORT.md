@@ -217,7 +217,7 @@ Fresh evidence from this checkout on macOS arm64, Go 1.27.0:
 | `UNDOLANG_STRESS=1 ... go test ./internal/fsop -run '^TestStressCopy256MiB$' -count=1` | PASS, 2.260s |
 | lexer/parser/journal `-fuzz` runs, 5s each | PASS; 142,471 / 73,804 / 279,128 executions reported |
 | `go test ./internal/cli -run '^TestRealProcessCrashRecoveryMatrix$' -count=1` | PASS, 9 real kill/recover checkpoints, 5.767s |
-| all five `examples/*.undo` with real `check` and `plan` fixtures | PASS |
+| `examples/live-filesystem.undo` with real `check`/`plan` fixtures | PASS; one program with selectable success and failure transactions |
 | `./scripts/deps-proof.sh` | PASS; offline tests and build |
 | `make reproducible-build` (`./scripts/repro-build.sh`) | PASS; labeled identical A/B SHA-256; reuses installer toolchain when needed |
 | `./scripts/release.sh` | PASS; five cross-builds |
