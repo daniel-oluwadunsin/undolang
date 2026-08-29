@@ -69,12 +69,30 @@ func Open(root string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
+	absolute, err = filepath.EvalSymlinks(absolute)
+	if err != nil {
+		return nil, err
+	}
+	info, err := os.Stat(absolute)
+	if err != nil {
+		return nil, err
+	}
+	if !info.IsDir() {
+		return nil, errors.New("transaction root is not a directory")
+	}
 	return &Store{root: absolute, stateDir: filepath.Join(absolute, ".undo"), transactionsDir: filepath.Join(absolute, ".undo", "transactions")}, nil
 }
 func (s *Store) Ensure() error {
 	for _, dir := range []string{s.stateDir, s.transactionsDir, filepath.Join(s.stateDir, "history")} {
 		if err := os.MkdirAll(dir, 0o700); err != nil {
 			return err
+		}
+		info, err := os.Lstat(dir)
+		if err != nil {
+			return err
+		}
+		if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+			return fmt.Errorf("state path is not a real directory: %s", dir)
 		}
 		if err := os.Chmod(dir, 0o700); err != nil {
 			return err
@@ -186,6 +204,9 @@ func (t *Transaction) Release() error {
 		return err
 	}
 	lock, err := t.store.Active()
+	if errors.Is(err, os.ErrNotExist) {
+		return syncDir(t.store.stateDir)
+	}
 	if err != nil {
 		return err
 	}

@@ -70,6 +70,12 @@ func Open(primary string, allowed []string) (*Set, error) {
 			return nil, &Error{Code: Invalid, Message: "make capability root absolute", Path: path, Cause: err}
 		}
 		absolute = filepath.Clean(absolute)
+		canonical, err := filepath.EvalSymlinks(absolute)
+		if err != nil {
+			set.Close()
+			return nil, &Error{Code: Invalid, Message: "canonicalize capability root", Path: path, Cause: err}
+		}
+		absolute = filepath.Clean(canonical)
 		if seen[absolute] {
 			continue
 		}
@@ -137,7 +143,10 @@ func (s *Set) Resolve(path string) (ResolvedPath, error) {
 		}
 		return s.resolved(s.roots[0], clean, path), nil
 	}
-	absolute := filepath.Clean(path)
+	absolute, err := canonicalizeForMapping(filepath.Clean(path))
+	if err != nil {
+		return ResolvedPath{}, &Error{Code: Invalid, Message: "canonicalize absolute path", Path: path, Cause: err}
+	}
 	if within(absolute, filepath.Join(s.roots[0].Path, ".undo")) {
 		return ResolvedPath{}, &Error{Code: Reserved, Message: "runtime state path is reserved", Path: path, Root: s.roots[0].Path}
 	}
@@ -160,6 +169,32 @@ func (s *Set) Resolve(path string) (ResolvedPath, error) {
 		return ResolvedPath{}, &Error{Code: Reserved, Message: "runtime state path is reserved", Path: path, Root: root.Path}
 	}
 	return s.resolved(root, rel, path), nil
+}
+
+// canonicalizeForMapping resolves symlinks in the deepest existing ancestor,
+// then appends any not-yet-created suffix. Actual access remains enforced by
+// os.Root; this normalization is only capability selection.
+func canonicalizeForMapping(path string) (string, error) {
+	current := filepath.Clean(path)
+	var suffix []string
+	for {
+		canonical, err := filepath.EvalSymlinks(current)
+		if err == nil {
+			for index := len(suffix) - 1; index >= 0; index-- {
+				canonical = filepath.Join(canonical, suffix[index])
+			}
+			return filepath.Clean(canonical), nil
+		}
+		if !errors.Is(err, fs.ErrNotExist) {
+			return "", err
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return "", err
+		}
+		suffix = append(suffix, filepath.Base(current))
+		current = parent
+	}
 }
 
 func (s *Set) resolved(root CapabilityRoot, rel, original string) ResolvedPath {

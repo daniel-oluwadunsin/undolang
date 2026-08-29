@@ -239,7 +239,7 @@ func Decode(r io.Reader) (Replay, error) {
 		if err = validateReference(kind, payload.OperationID, prepared, applied, rollbackPrepared, rollbackApplied); err != nil {
 			return Replay{}, err
 		}
-		if err = validateSemantics(kind, payload, &state, rollbackApplied, &result); err != nil {
+		if err = validateSemantics(kind, payload, &state, prepared, applied, rollbackApplied, &result); err != nil {
 			return Replay{}, err
 		}
 		result.Records = append(result.Records, Record{Type: kind, Sequence: sequence, Payload: append([]byte(nil), body[:length]...)})
@@ -252,7 +252,7 @@ func Decode(r io.Reader) (Replay, error) {
 func validateReference(kind Type, id string, prepared, applied, rollbackPrepared, rollbackApplied map[string]bool) error {
 	switch kind {
 	case OPPrepared:
-		if id == "" || prepared[id] {
+		if id == "" || prepared[id] || len(prepared) != len(applied) {
 			return fmt.Errorf("%w: invalid or duplicate prepared operation", ErrCorrupt)
 		}
 		prepared[id] = true
@@ -275,7 +275,7 @@ func validateReference(kind Type, id string, prepared, applied, rollbackPrepared
 	return nil
 }
 
-func validateSemantics(kind Type, payload Payload, state *string, rollbackApplied map[string]bool, result *Replay) error {
+func validateSemantics(kind Type, payload Payload, state *string, prepared, applied, rollbackApplied map[string]bool, result *Replay) error {
 	if result.Committed || result.RolledBack {
 		if kind != TXState {
 			return fmt.Errorf("%w: record follows terminal marker", ErrCorrupt)
@@ -283,11 +283,14 @@ func validateSemantics(kind Type, payload Payload, state *string, rollbackApplie
 	}
 	switch kind {
 	case TXBegin:
-		if *state != "" || payload.State != "PLANNED" {
+		if *state != "" || payload.State != "PLANNED" || payload.TransactionID == "" {
 			return fmt.Errorf("%w: invalid transaction begin state", ErrCorrupt)
 		}
 		*state = payload.State
 	case TXState:
+		if payload.State == "VERIFYING" && len(prepared) != len(applied) {
+			return fmt.Errorf("%w: verification begins with an unapplied operation", ErrCorrupt)
+		}
 		if !validTransition(*state, payload.State) {
 			return fmt.Errorf("%w: invalid state transition %s -> %s", ErrCorrupt, *state, payload.State)
 		}
@@ -311,12 +314,12 @@ func validateSemantics(kind Type, payload Payload, state *string, rollbackApplie
 			return fmt.Errorf("%w: rollback record outside ROLLING_BACK", ErrCorrupt)
 		}
 	case TXCommit:
-		if *state != "COMMITTING" || result.Committed {
+		if *state != "COMMITTING" || result.Committed || len(prepared) != len(applied) {
 			return fmt.Errorf("%w: invalid commit marker", ErrCorrupt)
 		}
 		result.Committed = true
 	case TXRollbackComplete:
-		if *state != "ROLLING_BACK" || result.RolledBack {
+		if *state != "ROLLING_BACK" || result.RolledBack || len(prepared) != len(rollbackApplied) {
 			return fmt.Errorf("%w: invalid rollback completion", ErrCorrupt)
 		}
 		result.RolledBack = true

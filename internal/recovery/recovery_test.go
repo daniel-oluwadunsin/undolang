@@ -98,6 +98,20 @@ func TestRecoveryAppliedRecordAndIdempotency(t *testing.T) {
 	}
 }
 
+func TestRecoveryWithoutActiveLockUsesSingleUnresolvedTransaction(t *testing.T) {
+	root, id := interruptedWrite(t, true, true)
+	if err := os.Remove(filepath.Join(root, ".undo", "active.lock")); err != nil {
+		t.Fatal(err)
+	}
+	result, err := RecoverRoot(root, Options{})
+	if err != nil || result.TransactionID != id || result.Status != state.RolledBack {
+		t.Fatalf("result=%#v err=%v", result, err)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".undo", "active.lock")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("unexpected lock after recovery: %v", err)
+	}
+}
+
 func TestRecoveryTruncatesOnlyTornFinalFrame(t *testing.T) {
 	root, _ := interruptedWrite(t, true, true)
 	store, _ := state.Open(root)

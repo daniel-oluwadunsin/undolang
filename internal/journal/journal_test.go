@@ -157,6 +157,39 @@ func TestSemanticReplayValidation(t *testing.T) {
 	}
 }
 
+func TestSemanticReplayRejectsUnappliedOperationAtVerificationAndCommit(t *testing.T) {
+	records := []struct {
+		kind    Type
+		payload Payload
+	}{
+		{TXBegin, Payload{TransactionID: "tx", State: "PLANNED"}},
+		{TXState, Payload{TransactionID: "tx", State: "PREPARED"}},
+		{TXState, Payload{TransactionID: "tx", State: "RUNNING"}},
+		{OPPrepared, Payload{TransactionID: "tx", OperationID: "1"}},
+		{TXState, Payload{TransactionID: "tx", State: "VERIFYING"}},
+	}
+	if _, err := Decode(bytes.NewReader(journalBytes(t, records...))); !errors.Is(err, ErrCorrupt) {
+		t.Fatalf("error=%v", err)
+	}
+}
+
+func TestSemanticReplayRejectsIncompleteRollbackMarker(t *testing.T) {
+	records := []struct {
+		kind    Type
+		payload Payload
+	}{
+		{TXBegin, Payload{TransactionID: "tx", State: "PLANNED"}},
+		{TXState, Payload{TransactionID: "tx", State: "PREPARED"}},
+		{TXState, Payload{TransactionID: "tx", State: "RUNNING"}},
+		{OPPrepared, Payload{TransactionID: "tx", OperationID: "1"}},
+		{TXState, Payload{TransactionID: "tx", State: "ROLLING_BACK"}},
+		{TXRollbackComplete, Payload{TransactionID: "tx"}},
+	}
+	if _, err := Decode(bytes.NewReader(journalBytes(t, records...))); !errors.Is(err, ErrCorrupt) {
+		t.Fatalf("error=%v", err)
+	}
+}
+
 func FuzzDecodeNeverPanics(f *testing.F) {
 	f.Add([]byte{})
 	f.Add([]byte("UNDO"))

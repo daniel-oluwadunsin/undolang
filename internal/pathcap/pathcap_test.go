@@ -20,13 +20,15 @@ func TestResolveCapabilities(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer set.Close()
+	canonicalRoot, _ := filepath.EvalSymlinks(root)
+	canonicalNested, _ := filepath.EvalSymlinks(nested)
 
 	rel, err := set.Resolve("a/b")
-	if err != nil || rel.Root != root || rel.Relative != filepath.Join("a", "b") {
+	if err != nil || rel.Root != canonicalRoot || rel.Relative != filepath.Join("a", "b") {
 		t.Fatalf("relative = %#v, %v", rel, err)
 	}
 	abs, err := set.Resolve(filepath.Join(nested, "file"))
-	if err != nil || abs.Root != nested || abs.Relative != "file" {
+	if err != nil || abs.Root != canonicalNested || abs.Relative != "file" {
 		t.Fatalf("most specific = %#v, %v", abs, err)
 	}
 	for _, path := range []string{"../x", filepath.Join(root, ".undo"), filepath.Join(root, ".undo", "journal")} {
@@ -74,5 +76,42 @@ func TestOpenRejectsNonDirectory(t *testing.T) {
 	var pathErr *Error
 	if !errors.As(err, &pathErr) || pathErr.Code != Invalid {
 		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestCapabilityRootIsCanonicalizedBeforeUse(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink creation normally requires additional privileges")
+	}
+	parent := t.TempDir()
+	realRoot := filepath.Join(parent, "real")
+	alias := filepath.Join(parent, "alias")
+	if err := os.Mkdir(realRoot, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(realRoot, alias); err != nil {
+		t.Fatal(err)
+	}
+	set, err := Open(alias, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer set.Close()
+	canonicalRoot, _ := filepath.EvalSymlinks(realRoot)
+	if set.Primary() != canonicalRoot {
+		t.Fatalf("primary=%q want canonical %q", set.Primary(), canonicalRoot)
+	}
+	if err := os.Remove(alias); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(t.TempDir(), alias); err != nil {
+		t.Fatal(err)
+	}
+	resolved, err := set.Resolve("file")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolved.Root != canonicalRoot {
+		t.Fatalf("root changed after symlink retarget: %#v", resolved)
 	}
 }

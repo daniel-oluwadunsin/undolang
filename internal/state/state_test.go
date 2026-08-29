@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -50,6 +51,30 @@ func TestTransactionStateAndLockLifecycle(t *testing.T) {
 	}
 	if len(history) != 1 || history[0].ID != tx.Meta.ID {
 		t.Fatalf("history=%#v", history)
+	}
+}
+
+func TestEnsureRejectsSymlinkStateDirectory(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink creation normally requires additional privileges")
+	}
+	root, outside := t.TempDir(), t.TempDir()
+	if err := os.Symlink(outside, filepath.Join(root, ".undo")); err != nil {
+		t.Fatal(err)
+	}
+	store, err := Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = store.Ensure(); err == nil {
+		t.Fatal("accepted a symlink as the protected state directory")
+	}
+	entries, err := os.ReadDir(outside)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("state escaped root: %v", entries)
 	}
 }
 
