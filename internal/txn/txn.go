@@ -61,9 +61,6 @@ func Execute(transaction validate.Transaction, capabilities *pathcap.Set, option
 		AllowedRoots: allowedRoots(capabilities),
 	})
 	if err != nil {
-		if errors.Is(err, errors.ErrUnsupported) {
-			return Result{}, err
-		}
 		return Result{}, err
 	}
 	result := Result{TransactionID: tx.Meta.ID, Status: state.Planned}

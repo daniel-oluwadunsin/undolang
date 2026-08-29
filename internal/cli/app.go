@@ -10,18 +10,29 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/daniel-oluwadunsin/undolang/internal/buildinfo"
+	"github.com/daniel-oluwadunsin/undolang/internal/journal"
 	"github.com/daniel-oluwadunsin/undolang/internal/lang/diag"
 	"github.com/daniel-oluwadunsin/undolang/internal/lang/frontend"
 	"github.com/daniel-oluwadunsin/undolang/internal/lang/validate"
 	"github.com/daniel-oluwadunsin/undolang/internal/pathcap"
 	"github.com/daniel-oluwadunsin/undolang/internal/plan"
+	"github.com/daniel-oluwadunsin/undolang/internal/program"
+	"github.com/daniel-oluwadunsin/undolang/internal/recovery"
 	"github.com/daniel-oluwadunsin/undolang/internal/report"
+	"github.com/daniel-oluwadunsin/undolang/internal/state"
+	"github.com/daniel-oluwadunsin/undolang/internal/txn"
 )
 
-type App struct{ Stdout, Stderr io.Writer }
+type App struct {
+	Stdin          io.Reader
+	Stdout, Stderr io.Writer
+	IsTerminal     func() bool
+	Checkpoint     func(string)
+}
 
 func (a App) Run(args []string) int {
 	if a.Stdout == nil {
@@ -29,6 +40,9 @@ func (a App) Run(args []string) int {
 	}
 	if a.Stderr == nil {
 		a.Stderr = os.Stderr
+	}
+	if a.Stdin == nil {
+		a.Stdin = os.Stdin
 	}
 	if len(args) == 0 {
 		fmt.Fprintln(a.Stderr, usage)
@@ -39,6 +53,14 @@ func (a App) Run(args []string) int {
 		return a.check(args[1:])
 	case "plan":
 		return a.plan(args[1:])
+	case "run":
+		return a.run(args[1:])
+	case "recover":
+		return a.recover(args[1:])
+	case "history":
+		return a.history(args[1:])
+	case "inspect":
+		return a.inspect(args[1:])
 	case "version":
 		return a.version(args[1:])
 	case "capabilities":
@@ -56,8 +78,25 @@ func (a App) Run(args []string) int {
 	}
 }
 
-const usage = "usage: undo <check|plan|version|capabilities|schema|agent-guide> [options]"
-const agentGuide = "Agent workflow: capabilities --json -> schema --json -> check FILE --json -> plan FILE --json. Mutation commands are intentionally unavailable until the transaction engine is wired."
+const usage = `UndoLang — crash-safe filesystem transactions
+
+usage: undo <command> [options]
+
+commands:
+  check FILE       validate a complete UndoLang program
+  plan FILE        inspect current-state and deferred transaction effects
+  run FILE         execute one or all transactions with durable rollback
+  recover          recover the unresolved transaction for a root
+  history          list local transaction history
+  inspect TXID     inspect validated transaction metadata and journal
+  capabilities     describe supported workflow features
+  schema           describe the UndoLang language
+  agent-guide      print the machine-agent workflow
+  version          print deterministic version information
+
+Use "undo <command> --help" for command-specific flags.`
+
+const agentGuide = "Agent workflow: capabilities --json -> schema --json -> check FILE --json -> plan FILE --json -> obtain approval -> run FILE --yes --json. If run reports recovery_required, invoke recover --root ROOT --yes --json before starting new work."
 
 type stringList []string
 
@@ -65,13 +104,13 @@ func (s *stringList) String() string     { return strings.Join(*s, ",") }
 func (s *stringList) Set(v string) error { *s = append(*s, v); return nil }
 
 type common struct {
-	root, transaction string
-	allowed           stringList
-	json, noColor     bool
-	file              string
+	root, transaction  string
+	allowed            stringList
+	json, noColor, yes bool
+	file               string
 }
 
-func parseCommon(name string, args []string, transaction bool) (common, error) {
+func parseCommon(name string, args []string, transaction, mutation bool) (common, error) {
 	var c common
 	flags := flag.NewFlagSet(name, flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
@@ -82,7 +121,10 @@ func parseCommon(name string, args []string, transaction bool) (common, error) {
 	}
 	flags.BoolVar(&c.json, "json", false, "machine JSON")
 	flags.BoolVar(&c.noColor, "no-color", false, "disable color")
-	reordered, err := reorder(args, map[string]bool{"root": true, "allow-path": true, "transaction": transaction, "json": false, "no-color": false})
+	if mutation {
+		flags.BoolVar(&c.yes, "yes", false, "approve mutation without a prompt")
+	}
+	reordered, err := reorder(args, map[string]bool{"root": true, "allow-path": true, "transaction": transaction, "json": false, "no-color": false, "yes": false})
 	if err != nil {
 		return c, err
 	}
@@ -147,7 +189,7 @@ func load(c common) (validate.Program, []byte, string, *pathcap.Set, error) {
 }
 
 func (a App) check(args []string) int {
-	c, err := parseCommon("check", args, false)
+	c, err := parseCommon("check", args, false, false)
 	if err != nil {
 		return a.err(jsonRequested(args), err)
 	}
@@ -171,7 +213,7 @@ func (a App) check(args []string) int {
 }
 
 func (a App) plan(args []string) int {
-	c, err := parseCommon("plan", args, true)
+	c, err := parseCommon("plan", args, true, false)
 	if err != nil {
 		return a.err(jsonRequested(args), err)
 	}
@@ -207,6 +249,232 @@ func (a App) plan(args []string) int {
 	return 0
 }
 
+func (a App) run(args []string) int {
+	if hasHelp(args) {
+		fmt.Fprintln(a.Stdout, "usage: undo run FILE [--transaction NAME] [--root DIR] [--allow-path DIR]... [--yes] [--json]")
+		return 0
+	}
+	c, err := parseCommon("run", args, true, true)
+	if err != nil {
+		return a.err(jsonRequested(args), err)
+	}
+	validated, source, scriptPath, caps, err := load(c)
+	if err != nil {
+		return a.err(c.json, err)
+	}
+	defer caps.Close()
+	sum := sha256.Sum256(source)
+	scriptHash := hex.EncodeToString(sum[:])
+	preview, err := plan.Build(validated, caps, plan.Options{ScriptPath: scriptPath, ScriptSHA256: scriptHash, SelectedName: c.transaction})
+	if err != nil {
+		return a.err(c.json, err)
+	}
+	if !preview.SafeToStart {
+		return a.failure(c.json, &report.Error{Code: txn.PreconditionFailed, Message: "program is not safe to start"}, 2)
+	}
+	if !c.yes {
+		if c.json || !a.interactive() {
+			return a.failure(c.json, &report.Error{Code: "E_APPROVAL_REQUIRED", Message: "noninteractive mutation requires --yes"}, 1)
+		}
+		fmt.Fprintf(a.Stdout, "program: %s\nroot: %s\ntransactions: %d\n", scriptPath, caps.Primary(), len(preview.Transactions))
+		for _, transaction := range preview.Transactions {
+			fmt.Fprintf(a.Stdout, "  %s: %s\n", transaction.Name, transaction.Readiness)
+		}
+		fmt.Fprint(a.Stdout, "Execute this program? [y/N] ")
+		var answer string
+		if _, err = fmt.Fscanln(a.Stdin, &answer); err != nil && !errors.Is(err, io.EOF) {
+			return a.err(false, err)
+		}
+		if !strings.EqualFold(answer, "y") && !strings.EqualFold(answer, "yes") {
+			return a.failure(false, &report.Error{Code: "E_CANCELLED", Message: "execution cancelled"}, 1)
+		}
+	}
+	result, runErr := program.Run(validated, caps, program.Options{ScriptPath: scriptPath, ScriptSHA256: scriptHash, SelectedName: c.transaction, Checkpoint: a.Checkpoint})
+	if runErr != nil {
+		structured, exit := classifyError(runErr)
+		return a.failureResult(c.json, result, structured, exit)
+	}
+	if c.json {
+		return a.success(result)
+	}
+	for _, transaction := range result.Transactions {
+		fmt.Fprintf(a.Stdout, "%s: %s", transaction.Name, transaction.Status)
+		if transaction.TransactionID != "" {
+			fmt.Fprintf(a.Stdout, " (%s)", transaction.TransactionID)
+		}
+		fmt.Fprintln(a.Stdout)
+	}
+	return 0
+}
+
+type rootFlags struct {
+	root        string
+	json, yes   bool
+	positionals []string
+}
+
+func parseRootFlags(name string, args []string, mutation bool) (rootFlags, error) {
+	var result rootFlags
+	var noColor bool
+	flags := flag.NewFlagSet(name, flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	flags.StringVar(&result.root, "root", "", "transaction root")
+	flags.BoolVar(&result.json, "json", false, "machine JSON")
+	flags.BoolVar(&noColor, "no-color", false, "disable color")
+	if mutation {
+		flags.BoolVar(&result.yes, "yes", false, "approve mutation without a prompt")
+	}
+	reordered, err := reorder(args, map[string]bool{"root": true, "json": false, "yes": false, "no-color": false})
+	if err != nil {
+		return result, err
+	}
+	if err = flags.Parse(reordered); err != nil {
+		return result, err
+	}
+	result.positionals = flags.Args()
+	return result, nil
+}
+
+func (a App) recover(args []string) int {
+	if hasHelp(args) {
+		fmt.Fprintln(a.Stdout, "usage: undo recover [--root DIR] [--yes] [--json]")
+		return 0
+	}
+	flags, err := parseRootFlags("recover", args, true)
+	if err != nil || len(flags.positionals) != 0 {
+		if err == nil {
+			err = errors.New("recover accepts no positional arguments")
+		}
+		return a.err(jsonRequested(args), err)
+	}
+	if !flags.yes {
+		if flags.json || !a.interactive() {
+			return a.failure(flags.json, &report.Error{Code: "E_APPROVAL_REQUIRED", Message: "noninteractive recovery requires --yes"}, 1)
+		}
+		fmt.Fprint(a.Stdout, "Recover the unresolved transaction for this root? [y/N] ")
+		var answer string
+		_, _ = fmt.Fscanln(a.Stdin, &answer)
+		if !strings.EqualFold(answer, "y") && !strings.EqualFold(answer, "yes") {
+			return a.failure(false, &report.Error{Code: "E_CANCELLED", Message: "recovery cancelled"}, 1)
+		}
+	}
+	result, err := recovery.RecoverRoot(flags.root, recovery.Options{Checkpoint: a.Checkpoint})
+	if err != nil {
+		return a.err(flags.json, err)
+	}
+	if flags.json {
+		return a.success(result)
+	}
+	if result.TransactionID == "" {
+		fmt.Fprintln(a.Stdout, "no recovery required")
+	} else {
+		fmt.Fprintf(a.Stdout, "transaction %s: %s\n", result.TransactionID, result.Status)
+	}
+	return 0
+}
+
+func (a App) history(args []string) int {
+	if hasHelp(args) {
+		fmt.Fprintln(a.Stdout, "usage: undo history [--root DIR] [--json]")
+		return 0
+	}
+	flags, err := parseRootFlags("history", args, false)
+	if err != nil || len(flags.positionals) != 0 {
+		if err == nil {
+			err = errors.New("history accepts no positional arguments")
+		}
+		return a.err(jsonRequested(args), err)
+	}
+	store, err := state.Open(flags.root)
+	if err != nil {
+		return a.err(flags.json, err)
+	}
+	entries, err := store.History()
+	if err != nil {
+		return a.err(flags.json, err)
+	}
+	for left, right := 0, len(entries)-1; left < right; left, right = left+1, right-1 {
+		entries[left], entries[right] = entries[right], entries[left]
+	}
+	if flags.json {
+		return a.success(entries)
+	}
+	for _, entry := range entries {
+		fmt.Fprintf(a.Stdout, "%s  %s  %s  %s\n", entry.ID, entry.Status, entry.StartedAt.Format("2006-01-02T15:04:05Z"), entry.Name)
+	}
+	return 0
+}
+
+func (a App) inspect(args []string) int {
+	if hasHelp(args) {
+		fmt.Fprintln(a.Stdout, "usage: undo inspect TXID [--root DIR] [--json]")
+		return 0
+	}
+	flags, err := parseRootFlags("inspect", args, false)
+	if err != nil || len(flags.positionals) != 1 {
+		if err == nil {
+			err = errors.New("inspect requires exactly one TXID")
+		}
+		return a.err(jsonRequested(args), err)
+	}
+	store, err := state.Open(flags.root)
+	if err != nil {
+		return a.err(flags.json, err)
+	}
+	meta, err := store.Inspect(flags.positionals[0])
+	if err != nil {
+		return a.err(flags.json, err)
+	}
+	journalPath := filepath.Join(meta.Root, ".undo", "transactions", meta.ID, "journal.bin")
+	file, err := os.Open(journalPath)
+	if err != nil {
+		return a.err(flags.json, err)
+	}
+	replay, decodeErr := journal.Decode(file)
+	closeErr := file.Close()
+	if decodeErr != nil {
+		return a.err(flags.json, decodeErr)
+	}
+	if closeErr != nil {
+		return a.err(flags.json, closeErr)
+	}
+	result := struct {
+		Metadata        state.Metadata `json:"metadata"`
+		JournalRecords  int            `json:"journal_records"`
+		JournalState    string         `json:"journal_state"`
+		TornTail        bool           `json:"torn_tail"`
+		BackupsRetained bool           `json:"backups_retained"`
+	}{Metadata: meta, JournalRecords: len(replay.Records), JournalState: replay.State, TornTail: replay.TornTail, BackupsRetained: !meta.BackupCleaned}
+	if flags.json {
+		return a.success(result)
+	}
+	fmt.Fprintf(a.Stdout, "transaction: %s\nname: %s\nstatus: %s\njournal records: %d\nbackups retained: %t\n", meta.ID, meta.Name, meta.Status, len(replay.Records), !meta.BackupCleaned)
+	return 0
+}
+
+func hasHelp(args []string) bool {
+	for _, arg := range args {
+		if arg == "--help" || arg == "-h" {
+			return true
+		}
+	}
+	return false
+}
+
+func (a App) interactive() bool {
+	if a.IsTerminal != nil {
+		return a.IsTerminal()
+	}
+	input, inputOK := a.Stdin.(*os.File)
+	output, outputOK := a.Stdout.(*os.File)
+	if !inputOK || !outputOK {
+		return false
+	}
+	inInfo, inErr := input.Stat()
+	outInfo, outErr := output.Stat()
+	return inErr == nil && outErr == nil && inInfo.Mode()&os.ModeCharDevice != 0 && outInfo.Mode()&os.ModeCharDevice != 0
+}
+
 func jsonRequested(args []string) bool {
 	for _, arg := range args {
 		if arg == "--json" || arg == "-json" || strings.HasPrefix(arg, "--json=") {
@@ -234,11 +502,11 @@ func (a App) version(args []string) int {
 	if err != nil {
 		return a.err(false, err)
 	}
-	result := map[string]string{"version": buildinfo.Version, "dsl_version": buildinfo.DSLVersion, "api_version": buildinfo.APIVersion}
+	result := map[string]string{"version": buildinfo.Version, "dsl_version": buildinfo.DSLVersion, "api_version": buildinfo.APIVersion, "go_version": runtime.Version()}
 	if j {
 		return a.success(result)
 	}
-	fmt.Fprintf(a.Stdout, "UndoLang %s\ndsl %s\napi %s\n", buildinfo.Version, buildinfo.DSLVersion, buildinfo.APIVersion)
+	fmt.Fprintf(a.Stdout, "UndoLang %s\ndsl %s\napi %s\ngo %s\n", buildinfo.Version, buildinfo.DSLVersion, buildinfo.APIVersion, runtime.Version())
 	return 0
 }
 
@@ -247,11 +515,11 @@ func (a App) capabilities(args []string) int {
 	if err != nil {
 		return a.err(false, err)
 	}
-	result := map[string]any{"cli_version": buildinfo.Version, "dsl_version": buildinfo.DSLVersion, "api_version": buildinfo.APIVersion, "operations": []string{"mkdir", "copy", "move", "write", "replace", "delete"}, "conditions": []string{"exists", "not_exists", "is_file", "is_dir", "contains", "sha256"}, "commands": []string{"check", "plan", "version", "capabilities", "schema", "agent-guide"}, "path_model": "relative paths bind to --root/cwd; external absolute paths require --allow-path"}
+	result := map[string]any{"cli_version": buildinfo.Version, "dsl_version": buildinfo.DSLVersion, "api_version": buildinfo.APIVersion, "operations": []string{"mkdir", "copy", "move", "write", "replace", "delete"}, "conditions": []string{"exists", "not_exists", "is_file", "is_dir", "contains", "sha256"}, "commands": []string{"check", "plan", "run", "recover", "history", "inspect", "version", "capabilities", "schema", "agent-guide"}, "path_model": "relative paths bind to --root/cwd; external absolute paths require --allow-path", "approval": "noninteractive mutation requires --yes", "transaction_model": "source-order, fail-fast, one recoverable transaction boundary per named transaction"}
 	if j {
 		return a.success(result)
 	}
-	fmt.Fprintln(a.Stdout, "UndoLang capabilities: check and plan; six filesystem operations; six conditions")
+	fmt.Fprintln(a.Stdout, "UndoLang capabilities: plan, journaled run/recover, history/inspect, six filesystem operations, and six conditions")
 	return 0
 }
 
@@ -260,12 +528,20 @@ func (a App) schema(args []string) int {
 	if err != nil {
 		return a.err(false, err)
 	}
-	result := map[string]any{"dsl_version": buildinfo.DSLVersion, "transaction": "transaction STRING { require* mutation* assert* }", "operations": map[string]string{"mkdir": "mkdir PATH", "copy": "copy SOURCE -> TARGET [overwrite]", "move": "move SOURCE -> TARGET [overwrite]", "write": "write PATH = STRING", "replace": "replace PATH OLD -> NEW", "delete": "delete PATH"}, "conditions": map[string]string{"exists": "exists PATH", "not_exists": "not_exists PATH", "is_file": "is_file PATH", "is_dir": "is_dir PATH", "contains": "contains PATH TEXT", "sha256": "sha256 PATH = HEX"}}
+	result := map[string]any{"dsl_version": buildinfo.DSLVersion, "api_version": buildinfo.APIVersion, "transaction": map[string]any{"syntax": "transaction STRING { require* mutation* assert* }", "rollback_boundary": true}, "operations": map[string]any{"mkdir": operationSchema("mkdir PATH", true, false, `mkdir "cache/data"`), "copy": operationSchema("copy SOURCE -> TARGET [overwrite]", true, true, `copy "config.new" -> "config" overwrite`), "move": operationSchema("move SOURCE -> TARGET [overwrite]", true, true, `move "old" -> "new"`), "write": operationSchema("write PATH = STRING", true, true, `write "VERSION" = "2"`), "replace": operationSchema("replace PATH OLD -> NEW", true, true, `replace "app.conf" "v1" -> "v2"`), "delete": operationSchema("delete PATH", true, true, `delete "obsolete"`)}, "conditions": map[string]any{"exists": conditionSchema("exists PATH"), "not_exists": conditionSchema("not_exists PATH"), "is_file": conditionSchema("is_file PATH"), "is_dir": conditionSchema("is_dir PATH"), "contains": conditionSchema("contains PATH TEXT"), "sha256": conditionSchema("sha256 PATH = HEX")}}
 	if j {
 		return a.success(result)
 	}
 	fmt.Fprintln(a.Stdout, "UndoLang schema undo-dsl/1; use --json for the complete machine schema")
 	return 0
+}
+
+func operationSchema(syntax string, reversible, destructive bool, example string) map[string]any {
+	return map[string]any{"syntax": syntax, "reversible": reversible, "destructive": destructive, "example": example}
+}
+
+func conditionSchema(syntax string) map[string]any {
+	return map[string]any{"syntax": syntax, "result": "boolean", "reads_filesystem": true}
 }
 
 func (a App) success(result any) int {
@@ -279,11 +555,19 @@ func (a App) success(result any) int {
 }
 
 func (a App) err(jsonMode bool, err error) int {
+	r, code := classifyError(err)
+	return a.failure(jsonMode, r, code)
+}
+
+func classifyError(err error) (*report.Error, int) {
 	r := &report.Error{Code: "E_IO", Message: err.Error()}
 	code := 3
 	var diagnostic *diag.Error
 	var pathError *pathcap.Error
 	var planError *plan.Error
+	var programError *program.Error
+	var transactionError *txn.Error
+	var recoveryError *recovery.Error
 	switch {
 	case errors.As(err, &diagnostic):
 		r.Code, r.Message, r.Line, r.Column, code = diagnostic.Code, diagnostic.Message, diagnostic.Span.Start.Line, diagnostic.Span.Start.Column, 1
@@ -291,10 +575,31 @@ func (a App) err(jsonMode bool, err error) int {
 		r.Code, r.Message, r.Path, r.Root, code = pathError.Code, pathError.Message, pathError.Path, pathError.Root, 3
 	case errors.As(err, &planError):
 		r.Code, r.Message, code = planError.Code, planError.Message, 2
+	case errors.As(err, &transactionError):
+		r.Code, r.Message, r.TransactionID = transactionError.Code, transactionError.Message, transactionError.TransactionID
+		if transactionError.RolledBack {
+			code = 4
+		} else {
+			code = 5
+		}
+	case errors.As(err, &recoveryError):
+		r.Code, r.Message, r.TransactionID = recoveryError.Code, recoveryError.Message, recoveryError.TransactionID
+		r.Recovery = "inspect retained state and run undo recover --root ROOT --yes"
+		if recoveryError.Code == recovery.Required {
+			code = 5
+		} else {
+			code = 6
+		}
+	case errors.As(err, &programError):
+		r.Code, r.Message = programError.Code, programError.Message
+		_, nestedCode := classifyError(programError.Cause)
+		code = nestedCode
+	case errors.Is(err, journal.ErrCorrupt):
+		r.Code, code = recovery.Corrupt, 6
 	case errors.Is(err, os.ErrPermission):
 		r.Code = "E_PERMISSION"
 	}
-	return a.failure(jsonMode, r, code)
+	return r, code
 }
 
 func (a App) failure(jsonMode bool, result *report.Error, code int) int {
@@ -306,5 +611,17 @@ func (a App) failure(jsonMode bool, result *report.Error, code int) int {
 		}
 	}
 	fmt.Fprintf(a.Stderr, "%s: %s\n", result.Code, result.Message)
+	return code
+}
+
+func (a App) failureResult(jsonMode bool, result any, structured *report.Error, code int) int {
+	if jsonMode {
+		data, err := json.Marshal(&report.Envelope{APIVersion: buildinfo.APIVersion, OK: false, Result: result, Error: structured})
+		if err == nil {
+			fmt.Fprintln(a.Stdout, string(data))
+			return code
+		}
+	}
+	fmt.Fprintf(a.Stderr, "%s: %s\n", structured.Code, structured.Message)
 	return code
 }

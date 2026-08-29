@@ -5,8 +5,8 @@ type Error struct {
 	Message       string `json:"message"`
 	Path          string `json:"path,omitempty"`
 	Root          string `json:"root,omitempty"`
-	Line          int    `json:"line,omitempty"`
-	Column        int    `json:"column,omitempty"`
+	Line          int    `json:"line,omitzero"`
+	Column        int    `json:"column,omitzero"`
 	TransactionID string `json:"transaction_id,omitempty"`
 	Recovery      string `json:"recovery,omitempty"`
 }

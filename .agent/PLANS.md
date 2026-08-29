@@ -16,7 +16,7 @@ Codex must:
 
 ## Current Phase
 
-Phase 6 transaction execution, rollback, and crash recovery.
+Phase 7 CLI completion, agent contracts, history/inspect, and installation.
 
 ## Completed
 
@@ -26,11 +26,11 @@ Phase 6 transaction execution, rollback, and crash recovery.
 - Phase 3: exact/deferred program planner, conservative conflict analysis, rollback estimates, `undo-cli/1` JSON envelopes, and production read-only CLI commands.
 - Phase 4: restrictive `.undo` layout, UUIDv7 metadata, exclusive active lock, validated state transitions, synced atomic status writes, CRC32C framed journal, strict replay, torn-tail detection, and history/inspection foundations.
 - Phase 5: serializable prepare/apply/verify/undo metadata; verified backups; mkdir, copy, move, write, literal streaming replace, and delete primitives; complete-entry overwrite restoration; root-safe temporary installation; basic mode preservation; explicit symlink/special-file policies; and fail-closed inverse verification.
+- Phase 6: crash-classifiable prepared metadata, strict journal state replay, source-order execution, post-lock revalidation, postconditions, journal-driven reverse rollback, idempotent recovery, real `run`/`recover`, and nine real-process kill/recover checkpoints.
 
 ## In Progress
 
-- Extend state and journal replay so durable records contain every fact required to classify and reverse an interrupted operation.
-- Add single-transaction execution, source-order program orchestration, journal-driven rollback, recovery, and real-process crash tests.
+- Finish command help, JSON error/result details, black-box coverage, and local installation scripts.
 
 ## Next
 
@@ -78,4 +78,9 @@ None blocking Phases 0-5.
 - `GOPROXY=off GOTOOLCHAIN=go1.27.0 go test -race ./...`: pass on macOS arm64.
 - `CGO_ENABLED=0 GOOS=<target> GOARCH=amd64 GOPROXY=off GOTOOLCHAIN=go1.27.0 go test -run '^$' -exec=/usr/bin/true ./...` for linux, windows, and darwin: compilation/linking pass; foreign behavioral tests were not executed.
 - `GOTOOLCHAIN=go1.27.0 go list -m all`: one module (`github.com/daniel-oluwadunsin/undolang`).
+- Phase 6 `GOPROXY=off GOTOOLCHAIN=go1.27.0 go test ./...`: pass.
+- Phase 6 `GOPROXY=off GOTOOLCHAIN=go1.27.0 go vet ./...`: pass.
+- Phase 6 `GOPROXY=off GOTOOLCHAIN=go1.27.0 go test -race ./...`: pass on macOS arm64.
+- Phase 6 crash matrix: nine externally killed subprocess checkpoints recovered by a freshly built CLI process; pass on macOS arm64.
+- Phase 6 module proof: only `github.com/daniel-oluwadunsin/undolang`.
 - Reproducible-build verification: deferred to the release phase.
