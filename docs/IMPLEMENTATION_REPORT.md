@@ -31,6 +31,9 @@ small `.undo` DSL. The release includes:
 - static HTML/CSS/vanilla-JS marketing and documentation pages;
 - local build, install, reproducibility, dependency-proof, and five-target
   cross-build tooling.
+- a root `Makefile` exposing the canonical build, offline test gates, proofs,
+  release checks, and common CLI commands, plus a simple copy/paste
+  [`TESTING.md`](../TESTING.md) human testing guide.
 
 ## Architecture and package map
 
@@ -85,6 +88,13 @@ independent. External absolute paths require explicit repeatable
 ## Exact setup, build, install, and run commands
 
 From a checkout:
+
+```sh
+make help
+make build
+```
+
+The direct canonical build is:
 
 ```sh
 GOTOOLCHAIN=go1.27.0 GOPROXY=off CGO_ENABLED=0 \
@@ -164,6 +174,8 @@ Do not delete `.undo` to bypass recovery.
    committed transactions remain committed.
 8. For the timed version of this flow, use
    [`DEMO_RUNBOOK.md`](DEMO_RUNBOOK.md).
+9. For a beginner-friendly copy/paste version of this flow, use
+   [`TESTING.md`](../TESTING.md).
 
 ## Complete agent usage flow
 
@@ -210,6 +222,11 @@ Fresh evidence from this checkout on macOS arm64, Go 1.27.0:
 | `./scripts/repro-build.sh` | PASS; identical A/B SHA-256 |
 | `./scripts/release.sh` | PASS; five cross-builds |
 | `GOTOOLCHAIN=go1.27.0 GOPROXY=off go list -m all` | one line: main module only |
+| `make verify` | PASS; build, offline tests, vet, race, example parsing, dependency proof, reproducibility, and release cross-builds |
+| `make fuzz` | PASS; lexer, parser, and journal fuzz targets with 5-second budgets |
+| `make stress` | PASS; 100k-entry planner and 256 MiB streaming-copy checks |
+| `make crash-test` | PASS; real process-kill/recovery matrix |
+| `TESTING.md` temporary-root flow | PASS; check, plan, whole-file run, selected run, JSON commands, history/inspect, and real assertion rollback |
 
 The active fuzz commands were:
 

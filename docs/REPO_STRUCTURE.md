@@ -12,6 +12,7 @@ undolang/
 ├── .zero-dep.toml
 ├── deps-proof.txt
 ├── Makefile                    # optional convenience; canonical go build must remain obvious
+├── TESTING.md                  # simple copy/paste human testing guide
 ├── install.sh                  # local convenience; verified optional Go bootstrap
 ├── install.ps1
 │

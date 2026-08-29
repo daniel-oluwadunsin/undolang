@@ -13,6 +13,15 @@ A `.undo` file is a program containing one or more named transactions. Each tran
 
 ## Build
 
+For a guided list of build, verification, and CLI commands:
+
+```sh
+make help
+make build
+```
+
+The canonical one-command build remains:
+
 ```sh
 go build -trimpath -buildvcs=false -o undo ./cmd/undo
 ./undo version
@@ -78,6 +87,7 @@ Noninteractive and JSON mutation requires `--yes`; `--json` alone never grants a
 - [Static marketing/docs site](marketing/index.html)
 - [Standard-library substitutions](STDLIB.md)
 - [Five-minute demo runbook](docs/DEMO_RUNBOOK.md)
+- [Simple testing guide](TESTING.md)
 
 ## Why Track F
 

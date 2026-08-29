@@ -16,7 +16,9 @@ Codex must:
 
 ## Current Phase
 
-Complete through Phase 11. No implementation phase is currently active.
+Complete through Phase 11. The final usability handoff adds only repository
+convenience documentation; no product implementation phase is currently
+active.
 
 ## Completed
 
@@ -32,6 +34,9 @@ Complete through Phase 11. No implementation phase is currently active.
 - Phase 9: version 0.1.0, MIT license, Track F metadata, 15-entry stdlib ledger, dependency receipts, byte-identical build proof, local installers, and five-target cross-build/checksum tooling.
 - Phase 10: hostile path/state/journal/planner/CLI review, canonical-root and symlink-identity fixes, strict recovery ownership, structured agent failures, permission/no-space classifications, active fuzzing, 100k-tree/256 MiB stress, and final acceptance evidence.
 - Phase 11: final submission-readiness audit, explicit 26-item acceptance matrix, refreshed dependency/reproducibility receipts, complete implementation handoff, and copyable real-kill demo runbook.
+- Final usability handoff: added a dependency-free `Makefile` for build, gate,
+  proof, release, and common CLI commands, plus `TESTING.md` with real
+  end-to-end, rollback, JSON-agent, and crash-recovery instructions.
 
 ## In Progress
 
@@ -113,3 +118,8 @@ None blocking Phases 0-5.
 - Phase 11 final reproducibility: both canonical macOS arm64 builds hash `6a7b1ba6a62e911d4ab93759a9809615efda8369d7347a5e562bc7d336771d2d`.
 - Phase 11 final release cross-build: Linux amd64/arm64, macOS amd64/arm64, and Windows amd64 pass with CGO disabled.
 - Installer bootstrap update: shell syntax/help and documentation were updated for the verified Go 1.27.0 user-local bootstrap; PowerShell execution remains untested on this macOS host.
+- Final usability handoff verification: `make help`, `make build`, `make test`,
+  `make vet`, `make race`, `make examples`, `make modules`, `make verify`,
+  `make fuzz`, `make stress`, `make crash-test`, `make deps-proof`, and `make
+  repro` were run on macOS arm64; the copy/paste flow in `TESTING.md` was also
+  exercised against temporary roots.
