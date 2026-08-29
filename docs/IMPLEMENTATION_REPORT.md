@@ -78,4 +78,24 @@ If an execution process is interrupted, run `./undo recover --root /path/to/fixt
 - Recovery handles one unresolved transaction and does not resume later program entries.
 - Windows and Linux targets compile but have not run the behavioral or crash suite on a real host in this environment.
 
-No implementation decision remains blocked on user input. The final adversarial-audit findings and platform qualifications are appended after Phase 10.
+## Adversarial audit
+
+The Phase 10 review found and fixed concrete correctness gaps rather than weakening claims:
+
+- capability roots are canonicalized before persistence so a retargeted root symlink cannot redirect recovery;
+- pre-existing symlinks at protected `.undo` directory levels are rejected;
+- absolute path normalization preserves the final symlink entry instead of accidentally redirecting delete/move to its target;
+- symlink-parent escapes are rejected during mapping and still enforced by `os.Root` during access;
+- content/type conditions refuse symlink dereference, while `exists` observes the entry itself;
+- recovery accepts one lockless unresolved transaction, reconciles terminal stale locks, and fails closed when a lock coexists with another unresolved transaction;
+- replay rejects unapplied operations entering verification/commit and incomplete rollback-complete markers;
+- planner overlays reject parent/child aliases and use-after-move/delete without rejecting `mkdir` followed by a child write;
+- JSON names are escape-tested and target file contents are verified absent from output;
+- state-creation permission failures and ENOSPC receive stable classifications;
+- failed overwrite rename attempts restore the prepared destination backup before returning.
+
+Behavior tested on macOS arm64 includes all package/integration tests, the race detector, restrictive permissions, symlinks, FIFOs, hard-link limitation behavior, 100,000-entry planning, 256 MiB streaming copy/undo, active lexer/parser/journal fuzzing, and nine real externally killed subprocess recovery points.
+
+Linux amd64/arm64, macOS amd64, and Windows amd64 are compile/release targets only. Real ENOSPC during journal sync/rollback, actual cross-device `EXDEV` on two mounted filesystems, Windows reparse/open-handle behavior, Linux filesystem durability, and PowerShell execution were not safely available on this host. These gaps are not presented as tested support.
+
+No implementation decision remains blocked on user input. Recording and publishing the five-minute submission video remains an external submission task.

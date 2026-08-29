@@ -4,8 +4,8 @@ Toolchain: go version go1.27.0 darwin/arm64
 Environment: CGO_ENABLED=0, GOTOOLCHAIN=go1.27.0, GOPROXY=off
 Command (run twice): go build -trimpath -buildvcs=false -o <temporary-output> ./cmd/undo
 
-Build A SHA-256: c6b9e15fb6ff95aaa1a5c5b6ec42b88efcbde0496d43a2a3b079892738141343
-Build B SHA-256: c6b9e15fb6ff95aaa1a5c5b6ec42b88efcbde0496d43a2a3b079892738141343
+Build A SHA-256: 6a7b1ba6a62e911d4ab93759a9809615efda8369d7347a5e562bc7d336771d2d
+Build B SHA-256: 6a7b1ba6a62e911d4ab93759a9809615efda8369d7347a5e562bc7d336771d2d
 
 Comparison performed by tools/buildproof using crypto/sha256 and io.Copy.
 Result: PASS — outputs were byte-identical.

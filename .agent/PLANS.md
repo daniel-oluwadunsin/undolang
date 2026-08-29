@@ -16,7 +16,7 @@ Codex must:
 
 ## Current Phase
 
-Phase 10 adversarial security/correctness audit and final acceptance gates.
+Complete through Phase 10. No implementation phase is currently active.
 
 ## Completed
 
@@ -30,14 +30,15 @@ Phase 10 adversarial security/correctness audit and final acceptance gates.
 - Phase 7: complete help and approval UX, whole-program JSON results, stable exit classes, history/inspect, expanded schema/capabilities, compiled-binary contract tests, and local shell/PowerShell installers.
 - Phase 8: static newsprint landing/docs site, canonical runtime guides, five parser-validated examples, downloadable agent context, responsive navigation, and automated snippet/link/command correctness tests.
 - Phase 9: version 0.1.0, MIT license, Track F metadata, 15-entry stdlib ledger, dependency receipts, byte-identical build proof, local installers, and five-target cross-build/checksum tooling.
+- Phase 10: hostile path/state/journal/planner/CLI review, canonical-root and symlink-identity fixes, strict recovery ownership, structured agent failures, permission/no-space classifications, active fuzzing, 100k-tree/256 MiB stress, and final acceptance evidence.
 
 ## In Progress
 
-- Audit hostile inputs, races, interrupted recovery, resource bounds, output disclosure, platform gaps, and all final acceptance evidence.
+- None.
 
 ## Next
 
-- Phase 10: adversarial audit and final acceptance gates.
+- Submission-only work outside implementation: record/publish the five-minute demo and run behavioral suites on additional real operating systems if available.
 
 ## Decisions Made During Implementation
 
@@ -92,6 +93,10 @@ None blocking Phases 0-5.
 - Phase 8 offline tests, vet, and race detector: pass on macOS arm64.
 - Phase 8 module proof: only `github.com/daniel-oluwadunsin/undolang`.
 - Phase 9 dependency proof: `go.mod` has no `require`, `go.sum` is absent, module list contains only the main module, and offline tests/build pass.
-- Phase 9 reproducibility proof: two canonical macOS arm64 builds both hashed `c6b9e15fb6ff95aaa1a5c5b6ec42b88efcbde0496d43a2a3b079892738141343`.
+- Phase 9 proof was regenerated after Phase 10 production fixes. Final canonical macOS arm64 builds both hashed `6a7b1ba6a62e911d4ab93759a9809615efda8369d7347a5e562bc7d336771d2d`.
 - Phase 9 cross-builds: Linux amd64/arm64, macOS amd64/arm64, and Windows amd64 all pass with CGO disabled; only macOS arm64 behavior is claimed tested.
 - Phase 9 offline tests, vet, and race detector: pass on macOS arm64.
+- Phase 10 active fuzzing: lexer ~172k executions, parser ~246k, journal decoder ~880k; no panic or failure.
+- Phase 10 opt-in scale: 100,000-entry planner test pass in 21.851s; 256 MiB copy/undo test pass in 1.883s.
+- Phase 10 uncached nine-checkpoint real-process crash/recovery matrix: pass in 3.720s.
+- Phase 10 final offline tests, vet, race detector, documentation validation, dependency proof, five release cross-builds, and module proof: pass.
