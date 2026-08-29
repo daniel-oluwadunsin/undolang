@@ -16,7 +16,7 @@ Codex must:
 
 ## Current Phase
 
-Phase 5 real reversible filesystem primitives.
+Phases 0-5 complete. Phase 6 is not authorized by this plan.
 
 ## Completed
 
@@ -25,10 +25,11 @@ Phase 5 real reversible filesystem primitives.
 - Phase 2: `os.Root` capability set, most-specific absolute mapping, reserved/escape policy, safe stat/open behavior, and bounded-memory contains/SHA-256 evaluation.
 - Phase 3: exact/deferred program planner, conservative conflict analysis, rollback estimates, `undo-cli/1` JSON envelopes, and production read-only CLI commands.
 - Phase 4: restrictive `.undo` layout, UUIDv7 metadata, exclusive active lock, validated state transitions, synced atomic status writes, CRC32C framed journal, strict replay, torn-tail detection, and history/inspection foundations.
+- Phase 5: serializable prepare/apply/verify/undo metadata; verified backups; mkdir, copy, move, write, literal streaming replace, and delete primitives; complete-entry overwrite restoration; root-safe temporary installation; basic mode preservation; explicit symlink/special-file policies; and fail-closed inverse verification.
 
 ## In Progress
 
-- Implement prepare/apply/verify/undo filesystem primitives, backups, streaming copy/replace, mode preservation, and explicit file-type policies.
+None.
 
 ## Next
 
@@ -62,4 +63,11 @@ None blocking Phases 0-5.
 - Phase 3 `check`/`plan` mutation snapshots and structured JSON contract tests: pass.
 - Phase 4 offline tests, vet, and race detector: pass on macOS arm64.
 - Phase 4 journal corruption/torn-tail/reference tests and state lock lifecycle tests: pass.
-- reproducible-build verification: not run
+- Phase 5 focused filesystem operation/inverse integration tests: pass on macOS arm64.
+- `UNDOLANG_STRESS=1 GOPROXY=off GOTOOLCHAIN=go1.27.0 go test ./internal/fsop -run '^TestStressCopy256MiB$' -count=1`: pass.
+- `GOPROXY=off GOTOOLCHAIN=go1.27.0 go test ./...`: pass.
+- `GOPROXY=off GOTOOLCHAIN=go1.27.0 go vet ./...`: pass.
+- `GOPROXY=off GOTOOLCHAIN=go1.27.0 go test -race ./...`: pass on macOS arm64.
+- `CGO_ENABLED=0 GOOS=<target> GOARCH=amd64 GOPROXY=off GOTOOLCHAIN=go1.27.0 go test -run '^$' -exec=/usr/bin/true ./...` for linux, windows, and darwin: compilation/linking pass; foreign behavioral tests were not executed.
+- `GOTOOLCHAIN=go1.27.0 go list -m all`: one module (`github.com/daniel-oluwadunsin/undolang`).
+- Reproducible-build verification: deferred to the release phase.

@@ -1,6 +1,6 @@
 # UndoLang
 
-UndoLang is a Go 1.27, standard-library-only filesystem transaction language. The current implementation covers the language front-end, traversal-resistant path capabilities, streamed conditions, and non-mutating planning. Transaction execution is intentionally not exposed until the durable runner and recovery engine are wired in Phase 6.
+UndoLang is a Go 1.27, standard-library-only filesystem transaction language. The current implementation covers the language front-end, traversal-resistant path capabilities, streamed conditions, non-mutating planning, the durable journal/state foundation, and internal reversible filesystem primitives. Transaction execution is intentionally not exposed until the durable runner and recovery engine are wired in Phase 6.
 
 ## Build
 
@@ -27,9 +27,13 @@ A file may contain multiple named transactions. Whole-program planning preflight
 ## Current limitations
 
 - `run`, rollback orchestration, and crash recovery are not exposed yet.
-- Planning and condition reads use `os.Root` to prevent symlink traversal outside declared roots.
-- Symlink copying and special filesystem objects are unsupported.
-- UndoLang does not claim atomic visibility or universal rename/durability behavior across platforms.
+- Filesystem primitives remain internal and cannot be reached through a production CLI path before journal orchestration exists.
+- Planning, conditions, and filesystem operations use `os.Root` capability handles; mutation parents are rechecked and symlink parents are rejected.
+- Symlink entries may be moved or deleted and restored. Copying symlinks, dereferencing them for mutation, and special filesystem objects are unsupported.
+- Regular-file contents are copied, searched, hashed, and replaced with bounded buffers. Recursive trees preserve basic permission modes and empty directories.
+- Backups preserve contents, directories, symlink targets, and basic modes. ACLs, ownership, xattrs, sparse allocation, resource forks, alternate data streams, and hard-link identity are not preserved.
+- Files and temporary replacements are synced before installation and containing directories are synced where the host supports it. UndoLang does not claim atomic visibility, universal rename semantics, or identical durability guarantees across operating systems and filesystems.
+- Cross-capability moves use verified copy-then-delete. Same-capability rename falls back only for an explicitly recognized cross-device error; this fallback is compile-tested but requires a suitable multi-filesystem fixture for behavioral testing.
 
 ## Verification
 
