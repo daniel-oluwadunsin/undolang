@@ -16,7 +16,7 @@ Codex must:
 
 ## Current Phase
 
-Phase 8 static newsprint marketing site, public documentation, and validated examples.
+Phase 9 zero-dependency proof, reproducible release evidence, and cross-build tooling.
 
 ## Completed
 
@@ -28,15 +28,14 @@ Phase 8 static newsprint marketing site, public documentation, and validated exa
 - Phase 5: serializable prepare/apply/verify/undo metadata; verified backups; mkdir, copy, move, write, literal streaming replace, and delete primitives; complete-entry overwrite restoration; root-safe temporary installation; basic mode preservation; explicit symlink/special-file policies; and fail-closed inverse verification.
 - Phase 6: crash-classifiable prepared metadata, strict journal state replay, source-order execution, post-lock revalidation, postconditions, journal-driven reverse rollback, idempotent recovery, real `run`/`recover`, and nine real-process kill/recover checkpoints.
 - Phase 7: complete help and approval UX, whole-program JSON results, stable exit classes, history/inspect, expanded schema/capabilities, compiled-binary contract tests, and local shell/PowerShell installers.
+- Phase 8: static newsprint landing/docs site, canonical runtime guides, five parser-validated examples, downloadable agent context, responsive navigation, and automated snippet/link/command correctness tests.
 
 ## In Progress
 
-- Build the static newsprint landing/docs experience, canonical public references, real examples, agent context export, and documentation correctness tests.
+- Produce dependency, reproducibility, and cross-build receipts without introducing build dependencies.
 
 ## Next
 
-- Phase 7: complete CLI, agent JSON contract, history/inspect, and local installers.
-- Phase 8: static newsprint marketing/docs and validated examples.
 - Phase 9: dependency/reproducibility/release receipts.
 - Phase 10: adversarial audit and final acceptance gates.
 
@@ -87,4 +86,9 @@ None blocking Phases 0-5.
 - Phase 7 offline tests, vet, and race detector: pass on macOS arm64.
 - Phase 7 compiled-binary help/version/schema/capabilities tests and run/history/inspect JSON tests: pass.
 - Phase 7 installer shell syntax validation: pass; PowerShell execution is untested on this host.
+- Phase 8 parser validation for every repository example and public UndoLang snippet: pass.
+- Phase 8 documented-command help, local-site-link, and zero-external-asset tests: pass.
+- Phase 8 desktop/mobile browser review, responsive navigation, and copy-to-agent interaction: pass.
+- Phase 8 offline tests, vet, and race detector: pass on macOS arm64.
+- Phase 8 module proof: only `github.com/daniel-oluwadunsin/undolang`.
 - Reproducible-build verification: deferred to the release phase.
