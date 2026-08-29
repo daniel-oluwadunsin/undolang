@@ -16,21 +16,20 @@ Codex must:
 
 ## Current Phase
 
-Phase 0 bootstrap for continuous implementation through Phase 5.
+Phase 2 path capabilities and non-mutating condition evaluation.
 
 ## Completed
 
-None.
+- Phase 0: repository/bootstrap plan recorded.
+- Phase 1: Go 1.27 module, source spans, UTF-8 lexer, recursive-descent parser, ordered AST, semantic validator, spelling suggestions, and initial `check`/`version` entrypoint.
 
 ## In Progress
 
-- Record the locked module path and phase sequence.
-- Preserve user-authored instruction/prompt edits in the bootstrap commit.
-- Implement and verify Phases 1 through 5 continuously, with a commit after each coherent milestone.
+- Implement traversal-resistant roots, resolved path types, reserved-state rules, and streamed conditions.
 
 ## Next
 
-Phase 1: Go bootstrap and complete language front-end.
+Phase 3: immutable planner and production read-only CLI contracts.
 
 ## Decisions Made During Implementation
 
@@ -50,7 +49,8 @@ None blocking Phases 0-5.
 ## Verification
 
 - Go 1.27 toolchain availability: verified with `GOTOOLCHAIN=go1.27.0 go version`.
-- `go test ./...`: not run
-- `go vet ./...`: not run
-- zero-dependency verification: not run
+- Phase 1 `GOPROXY=off go test ./...`: pass.
+- Phase 1 `GOPROXY=off go vet ./...`: pass.
+- Phase 1 `GOPROXY=off go test -race ./...`: pass on macOS arm64.
+- Phase 1 `go list -m all`: one module (`github.com/daniel-oluwadunsin/undolang`).
 - reproducible-build verification: not run
