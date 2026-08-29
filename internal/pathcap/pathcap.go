@@ -141,9 +141,21 @@ func (s *Set) Resolve(path string) (ResolvedPath, error) {
 		if reserved(clean) {
 			return ResolvedPath{}, &Error{Code: Reserved, Message: "runtime state path is reserved", Path: path, Root: s.roots[0].Path}
 		}
-		return s.resolved(s.roots[0], clean, path), nil
+		mapped, err := canonicalizeParent(filepath.Join(s.roots[0].Path, clean))
+		if err != nil {
+			return ResolvedPath{}, &Error{Code: Invalid, Message: "canonicalize path parent", Path: path, Cause: err}
+		}
+		if !within(mapped, s.roots[0].Path) {
+			return ResolvedPath{}, &Error{Code: Escape, Message: "path parent escapes transaction root through a symlink", Path: path, Root: s.roots[0].Path}
+		}
+		if within(mapped, filepath.Join(s.roots[0].Path, ".undo")) {
+			return ResolvedPath{}, &Error{Code: Reserved, Message: "runtime state path is reserved", Path: path, Root: s.roots[0].Path}
+		}
+		resolved := s.resolved(s.roots[0], clean, path)
+		resolved.Absolute = mapped
+		return resolved, nil
 	}
-	absolute, err := canonicalizeForMapping(filepath.Clean(path))
+	absolute, err := canonicalizeParent(filepath.Clean(path))
 	if err != nil {
 		return ResolvedPath{}, &Error{Code: Invalid, Message: "canonicalize absolute path", Path: path, Cause: err}
 	}
@@ -169,6 +181,14 @@ func (s *Set) Resolve(path string) (ResolvedPath, error) {
 		return ResolvedPath{}, &Error{Code: Reserved, Message: "runtime state path is reserved", Path: path, Root: root.Path}
 	}
 	return s.resolved(root, rel, path), nil
+}
+
+func canonicalizeParent(path string) (string, error) {
+	parent, err := canonicalizeForMapping(filepath.Dir(path))
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(parent, filepath.Base(path)), nil
 }
 
 // canonicalizeForMapping resolves symlinks in the deepest existing ancestor,
@@ -232,12 +252,26 @@ func (s *Set) Stat(path ResolvedPath) (fs.FileInfo, error) {
 	if err != nil {
 		return nil, err
 	}
+	info, err := root.Lstat(path.Relative)
+	if err != nil {
+		return nil, err
+	}
+	if info.Mode()&fs.ModeSymlink != 0 {
+		return nil, &Error{Code: Invalid, Message: "refusing to follow a symlink for target inspection", Path: path.Original, Root: path.Root}
+	}
 	return root.Stat(path.Relative)
 }
 func (s *Set) OpenFile(path ResolvedPath) (*os.File, error) {
 	root, err := s.Handle(path.RootID)
 	if err != nil {
 		return nil, err
+	}
+	info, err := root.Lstat(path.Relative)
+	if err != nil {
+		return nil, err
+	}
+	if info.Mode()&fs.ModeSymlink != 0 {
+		return nil, &Error{Code: Invalid, Message: "refusing to open a symlink target", Path: path.Original, Root: path.Root}
 	}
 	return root.Open(path.Relative)
 }

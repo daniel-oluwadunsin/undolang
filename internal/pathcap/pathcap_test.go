@@ -59,10 +59,11 @@ func TestRootPreventsSymlinkEscape(t *testing.T) {
 	}
 	defer set.Close()
 	path, err := set.Resolve(filepath.Join("escape", "secret"))
-	if err != nil {
-		t.Fatal(err)
+	if err == nil {
+		t.Fatalf("symlink escape resolved unexpectedly: %#v", path)
 	}
-	if _, err = set.Stat(path); err == nil {
+	forged := ResolvedPath{RootID: 0, Root: set.Primary(), Relative: filepath.Join("escape", "secret"), Absolute: filepath.Join(set.Primary(), "escape", "secret"), Original: "escape/secret"}
+	if _, err = set.Stat(forged); err == nil {
 		t.Fatal("os.Root followed a symlink outside its root")
 	}
 }

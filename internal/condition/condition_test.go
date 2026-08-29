@@ -69,3 +69,26 @@ func TestBrokenSymlinkExistsButIsNotFile(t *testing.T) {
 		t.Fatalf("is_file=%#v err=%v", isFile, err)
 	}
 }
+
+func TestContentConditionsRefuseSymlinkTargets(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink privileges")
+	}
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "target"), []byte("private"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("target", filepath.Join(root, "link")); err != nil {
+		t.Fatal(err)
+	}
+	set, err := pathcap.Open(root, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer set.Close()
+	for _, kind := range []ast.ConditionKind{ast.Contains, ast.SHA256} {
+		if _, err = Evaluate(ast.Condition{Kind: kind, Path: "link", Value: "private"}, set); err == nil {
+			t.Fatalf("%s followed a symlink target", kind)
+		}
+	}
+}

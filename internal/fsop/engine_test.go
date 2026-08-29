@@ -267,6 +267,59 @@ func TestDeleteFileDirectoryAndSymlinkRollback(t *testing.T) {
 	}
 }
 
+func TestAbsoluteDeleteRemovesSymlinkEntryNotItsTarget(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink creation commonly requires privileges on Windows")
+	}
+	f := newFixture(t)
+	external := filepath.Join(f.other, "external")
+	if err := os.WriteFile(external, []byte("safe"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(f.root, "absolute-link")
+	if err := os.Symlink(external, link); err != nil {
+		t.Fatal(err)
+	}
+	op := ast.Statement{Kind: ast.Delete, Path: link}
+	prepared := execute(t, f.engine, "absolute-symlink", op)
+	mustContent(t, external, "safe")
+	if _, err := os.Lstat(link); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("symlink entry remains: %v", err)
+	}
+	if err := f.engine.Undo(&prepared); err != nil {
+		t.Fatal(err)
+	}
+	if info, err := os.Lstat(link); err != nil || info.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("symlink entry was not restored: %v", err)
+	}
+}
+
+func TestDeleteSymlinkToReservedStateDoesNotTouchState(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink creation commonly requires privileges on Windows")
+	}
+	f := newFixture(t)
+	stateDir := filepath.Join(f.root, ".undo")
+	if err := os.Mkdir(stateDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	secret := filepath.Join(stateDir, "secret")
+	if err := os.WriteFile(secret, []byte("protected"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(f.root, "state-link")
+	if err := os.Symlink(filepath.Join(".undo", "secret"), link); err != nil {
+		t.Fatal(err)
+	}
+	op := ast.Statement{Kind: ast.Delete, Path: "state-link"}
+	prepared := execute(t, f.engine, "state-symlink", op)
+	mustContent(t, secret, "protected")
+	if err := f.engine.Undo(&prepared); err != nil {
+		t.Fatal(err)
+	}
+	mustContent(t, secret, "protected")
+}
+
 func TestMoveRenameOverwriteAndRollback(t *testing.T) {
 	f := newFixture(t)
 	f.write("source", "source data", 0o640)

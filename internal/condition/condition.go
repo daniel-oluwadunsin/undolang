@@ -33,12 +33,15 @@ func Evaluate(c ast.Condition, capabilities *pathcap.Set) (Result, error) {
 		}
 		return Result{Value: exists}, nil
 	case ast.IsFile, ast.IsDir:
-		info, statErr := capabilities.Stat(path)
+		info, statErr := capabilities.Lstat(path)
 		if errors.Is(statErr, fs.ErrNotExist) {
 			return Result{Value: false}, nil
 		}
 		if statErr != nil {
 			return Result{}, statErr
+		}
+		if info.Mode()&fs.ModeSymlink != 0 {
+			return Result{Value: false}, nil
 		}
 		if c.Kind == ast.IsFile {
 			return Result{Value: info.Mode().IsRegular()}, nil
