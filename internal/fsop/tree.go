@@ -102,6 +102,12 @@ func digestEntry(root *os.Root, rel string, rejectSymlink bool) (string, int64, 
 	return hex.EncodeToString(h.Sum(nil)), bytes, count, kind, info.Mode(), nil
 }
 
+func regularEntryDigest(contentDigest string, mode fs.FileMode) string {
+	h := sha256.New()
+	fmt.Fprintf(h, ".\x00%s\x00%o\x00%s", Regular, mode.Perm(), contentDigest)
+	return hex.EncodeToString(h.Sum(nil))
+}
+
 func copyEntry(src *os.Root, srcRel string, dst *os.Root, dstRel string, allowSymlink bool) error {
 	info, err := src.Lstat(srcRel)
 	if err != nil {

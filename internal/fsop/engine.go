@@ -5,16 +5,14 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"github.com/daniel-oluwadunsin/undolang/internal/lang/ast"
+	"github.com/daniel-oluwadunsin/undolang/internal/pathcap"
+	"github.com/daniel-oluwadunsin/undolang/internal/streamutil"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
-	"uuid"
-
-	"github.com/daniel-oluwadunsin/undolang/internal/lang/ast"
-	"github.com/daniel-oluwadunsin/undolang/internal/pathcap"
-	"github.com/daniel-oluwadunsin/undolang/internal/streamutil"
 )
 
 type Engine struct {
@@ -99,6 +97,11 @@ func (e *Engine) Prepare(id string, op ast.Statement) (p Prepared, retErr error)
 		if err = e.ensureParent(dst); err != nil {
 			return p, err
 		}
+		p.ExpectedDigest = p.SourceDigest
+		p.Temporary, err = e.prepareTemporary(dst, id, p.OperationHash)
+		if err != nil {
+			return p, err
+		}
 		if op.Kind == ast.Move {
 			p.SourceBackup, err = e.backup(src, filepath.Join(id, "source"))
 			if err != nil {
@@ -129,6 +132,15 @@ func (e *Engine) Prepare(id string, op ast.Statement) (p Prepared, retErr error)
 		if err == nil && p.PriorTarget.Present && p.PriorTarget.Type != Regular {
 			err = &Error{Code: UnsupportedType, Message: "write target is not a regular file", Path: op.Path}
 		}
+		if err == nil {
+			mode := fs.FileMode(0o644)
+			if p.PriorTarget.Present {
+				mode = p.PriorTarget.Mode
+			}
+			sum := sha256.Sum256([]byte(op.Content))
+			p.ExpectedDigest = regularEntryDigest(hex.EncodeToString(sum[:]), mode)
+			p.Temporary, err = e.prepareTemporary(target, id, p.OperationHash)
+		}
 	case ast.Replace:
 		if err = e.ensureParent(target); err == nil {
 			p.PriorTarget, err = e.backup(target, filepath.Join(id, "target"))
@@ -138,6 +150,12 @@ func (e *Engine) Prepare(id string, op ast.Statement) (p Prepared, retErr error)
 		}
 		if err == nil && p.PriorTarget.Type != Regular {
 			err = &Error{Code: UnsupportedType, Message: "replace target is not a regular file", Path: op.Path}
+		}
+		if err == nil {
+			p.ExpectedDigest, p.MatchCount, err = e.expectedReplacement(target, []byte(op.Old), []byte(op.New), p.PriorTarget.Mode)
+		}
+		if err == nil {
+			p.Temporary, err = e.prepareTemporary(target, id, p.OperationHash)
 		}
 	case ast.Delete:
 		if target.Relative == "." {
@@ -232,7 +250,7 @@ func (e *Engine) Undo(p *Prepared) error {
 		} else if !errors.Is(err, fs.ErrNotExist) {
 			return err
 		}
-		return e.restore(p.PriorTarget, p.Target)
+		return e.restore(p.PriorTarget, p.Target, p.OperationID+"-target")
 	case ast.Move:
 		if p.Method == "rename" {
 			if err := e.verifyCurrent(p.Target, p.ExpectedDigest); err != nil {
@@ -250,7 +268,7 @@ func (e *Engine) Undo(p *Prepared) error {
 			if err = root.Rename(p.Target.Relative, p.Source.Relative); err != nil {
 				return err
 			}
-			return e.restore(p.PriorTarget, p.Target)
+			return e.restore(p.PriorTarget, p.Target, p.OperationID+"-target")
 		}
 		if err := e.verifyCurrent(p.Target, p.ExpectedDigest); err != nil {
 			return err
@@ -263,10 +281,10 @@ func (e *Engine) Undo(p *Prepared) error {
 		} else if !errors.Is(err, fs.ErrNotExist) {
 			return err
 		}
-		if err := e.restore(p.SourceBackup, *p.Source); err != nil {
+		if err := e.restore(p.SourceBackup, *p.Source, p.OperationID+"-source"); err != nil {
 			return err
 		}
-		return e.restore(p.PriorTarget, p.Target)
+		return e.restore(p.PriorTarget, p.Target, p.OperationID+"-target")
 	default:
 		if err := e.verifyCurrent(p.Target, p.ExpectedDigest); err != nil {
 			return err
@@ -274,7 +292,7 @@ func (e *Engine) Undo(p *Prepared) error {
 		if err := e.remove(p.Target); err != nil {
 			return err
 		}
-		return e.restore(p.PriorTarget, p.Target)
+		return e.restore(p.PriorTarget, p.Target, p.OperationID+"-target")
 	}
 }
 
@@ -434,9 +452,9 @@ func (e *Engine) applyCopy(p *Prepared, removeSource bool) error {
 	if err != nil {
 		return err
 	}
-	temp, err := temporaryName(dstRoot, p.Target.Relative)
-	if err != nil {
-		return err
+	temp := p.Temporary
+	if temp == "" {
+		return &Error{Code: Conflict, Message: "missing prepared temporary path", Path: p.Target.Original}
 	}
 	defer dstRoot.RemoveAll(temp)
 	if err = copyEntry(srcRoot, p.Source.Relative, dstRoot, temp, p.Kind == ast.Move); err != nil {
@@ -450,7 +468,6 @@ func (e *Engine) applyCopy(p *Prepared, removeSource bool) error {
 			return err
 		}
 	}
-	p.ExpectedDigest = p.SourceDigest
 	return nil
 }
 
@@ -479,7 +496,7 @@ func (e *Engine) applyRenameMove(p *Prepared) error {
 	}
 	if err = root.Rename(p.Source.Relative, p.Target.Relative); err != nil {
 		if isCrossDevice(err) {
-			if restoreErr := e.restore(p.PriorTarget, p.Target); restoreErr != nil {
+			if restoreErr := e.restore(p.PriorTarget, p.Target, p.OperationID+"-target"); restoreErr != nil {
 				return errors.Join(err, restoreErr)
 			}
 			p.Method = "copy-delete"
@@ -499,7 +516,7 @@ func (e *Engine) applyWrite(p *Prepared, content []byte) error {
 	if err != nil {
 		return err
 	}
-	temp, err := temporaryFile(root, p.Target.Relative)
+	temp, err := createTemporaryFile(root, p.Temporary)
 	if err != nil {
 		return err
 	}
@@ -529,8 +546,7 @@ func (e *Engine) applyWrite(p *Prepared, content []byte) error {
 	if err = e.install(root, temp, p.Target); err != nil {
 		return err
 	}
-	p.ExpectedDigest, _, _, _, _, err = e.digest(p.Target, false)
-	return err
+	return e.verifyCurrent(p.Target, p.ExpectedDigest)
 }
 
 func isDescendant(parent, child string) bool {
@@ -562,11 +578,12 @@ func (e *Engine) applyReplace(p *Prepared, old, replacement []byte) error {
 		if matches == 0 {
 			return &Error{Code: ReplacePatternNotFound, Message: "replace pattern not found", Path: p.Target.Original}
 		}
-		p.MatchCount = matches
-		p.ExpectedDigest = p.PriorTarget.Digest
+		if matches != p.MatchCount {
+			return &Error{Code: VerificationFailed, Message: "replace source changed after preparation", Path: p.Target.Original}
+		}
 		return nil
 	}
-	temp, err := temporaryFile(root, p.Target.Relative)
+	temp, err := createTemporaryFile(root, p.Temporary)
 	if err != nil {
 		source.Close()
 		return err
@@ -601,9 +618,10 @@ func (e *Engine) applyReplace(p *Prepared, old, replacement []byte) error {
 	if err = e.install(root, temp, p.Target); err != nil {
 		return err
 	}
-	p.MatchCount = matches
-	p.ExpectedDigest, _, _, _, _, err = e.digest(p.Target, false)
-	return err
+	if matches != p.MatchCount {
+		return &Error{Code: VerificationFailed, Message: "replace source changed after preparation", Path: p.Target.Original}
+	}
+	return e.verifyCurrent(p.Target, p.ExpectedDigest)
 }
 
 func (e *Engine) applyDelete(p *Prepared) error {
@@ -613,23 +631,9 @@ func (e *Engine) applyDelete(p *Prepared) error {
 	return e.remove(p.Target)
 }
 
-func temporaryName(root *os.Root, target string) (string, error) {
-	parent := filepath.Dir(target)
-	for range 8 {
-		rel := filepath.Join(parent, ".undo-tmp-"+uuid.NewV7().String())
-		if _, err := root.Lstat(rel); errors.Is(err, fs.ErrNotExist) {
-			return rel, nil
-		} else if err != nil {
-			return "", err
-		}
-	}
-	return "", &Error{Code: Conflict, Message: "could not allocate temporary name", Path: target}
-}
-
-func temporaryFile(root *os.Root, target string) (string, error) {
-	rel, err := temporaryName(root, target)
-	if err != nil {
-		return "", err
+func createTemporaryFile(root *os.Root, rel string) (string, error) {
+	if rel == "" {
+		return "", &Error{Code: Conflict, Message: "missing prepared temporary path"}
 	}
 	file, err := root.OpenFile(rel, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 	if err != nil {
@@ -640,6 +644,44 @@ func temporaryFile(root *os.Root, target string) (string, error) {
 		return "", err
 	}
 	return rel, nil
+}
+
+func (e *Engine) prepareTemporary(target pathcap.ResolvedPath, id, hash string) (string, error) {
+	root, err := e.Capabilities.Handle(target.RootID)
+	if err != nil {
+		return "", err
+	}
+	rel := filepath.Join(filepath.Dir(target.Relative), ".undo-tmp-"+id+"-"+hash[:12])
+	if _, err = root.Lstat(rel); err == nil {
+		return "", &Error{Code: Conflict, Message: "prepared temporary path already exists", Path: rel}
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return "", err
+	}
+	return rel, nil
+}
+
+func (e *Engine) expectedReplacement(path pathcap.ResolvedPath, old, replacement []byte, mode fs.FileMode) (string, int64, error) {
+	root, err := e.Capabilities.Handle(path.RootID)
+	if err != nil {
+		return "", 0, err
+	}
+	source, err := root.Open(path.Relative)
+	if err != nil {
+		return "", 0, err
+	}
+	h := sha256.New()
+	matches, _, replaceErr := streamutil.ReplaceAll(h, source, old, replacement)
+	closeErr := source.Close()
+	if replaceErr != nil {
+		return "", 0, replaceErr
+	}
+	if closeErr != nil {
+		return "", 0, closeErr
+	}
+	if matches == 0 {
+		return "", 0, &Error{Code: ReplacePatternNotFound, Message: "replace pattern not found", Path: path.Original}
+	}
+	return regularEntryDigest(hex.EncodeToString(h.Sum(nil)), mode), matches, nil
 }
 func (e *Engine) install(root *os.Root, temp string, target pathcap.ResolvedPath) error {
 	if err := e.removeIfExists(target); err != nil {
@@ -708,7 +750,7 @@ func (e *Engine) verifyCurrent(path pathcap.ResolvedPath, want string) error {
 	return nil
 }
 
-func (e *Engine) restore(backup Backup, target pathcap.ResolvedPath) error {
+func (e *Engine) restore(backup Backup, target pathcap.ResolvedPath, seed string) error {
 	if !backup.Present {
 		return nil
 	}
@@ -716,8 +758,10 @@ func (e *Engine) restore(backup Backup, target pathcap.ResolvedPath) error {
 	if err != nil {
 		return err
 	}
-	temp, err := temporaryName(root, target.Relative)
-	if err != nil {
+	temp := recoveryTemporary(target.Relative, seed)
+	if _, err = root.Lstat(temp); err == nil {
+		return &Error{Code: Conflict, Message: "rollback temporary path already exists", Path: temp}
+	} else if !errors.Is(err, fs.ErrNotExist) {
 		return err
 	}
 	defer root.RemoveAll(temp)
@@ -732,4 +776,133 @@ func (e *Engine) restore(backup Backup, target pathcap.ResolvedPath) error {
 		return &Error{Code: VerificationFailed, Message: "restored backup digest mismatch", Path: target.Original}
 	}
 	return e.install(root, temp, target)
+}
+
+func recoveryTemporary(target, seed string) string {
+	sum := sha256.Sum256([]byte(seed + "\x00" + target))
+	return filepath.Join(filepath.Dir(target), ".undo-restore-"+hex.EncodeToString(sum[:6]))
+}
+
+// Classify compares the current filesystem against the durable before and
+// expected-after descriptors captured by Prepare.
+func (e *Engine) Classify(p Prepared) (Disposition, error) {
+	beforeTarget, err := e.matchesBackup(p.Target, p.PriorTarget)
+	if err != nil {
+		return Ambiguous, err
+	}
+	if p.Kind == ast.Mkdir {
+		created := false
+		for _, path := range p.Created {
+			info, statErr := e.Capabilities.Lstat(path)
+			if errors.Is(statErr, fs.ErrNotExist) {
+				continue
+			}
+			if statErr != nil || !info.IsDir() {
+				return Ambiguous, statErr
+			}
+			created = true
+		}
+		if created {
+			return After, nil
+		}
+		return Before, nil
+	}
+	if p.Kind == ast.Move {
+		if p.Source == nil {
+			return Ambiguous, &Error{Code: Conflict, Message: "missing move source metadata"}
+		}
+		sourceBefore, sourceErr := e.matchesDigest(*p.Source, p.SourceDigest)
+		if sourceErr != nil {
+			return Ambiguous, sourceErr
+		}
+		sourceAbsent, sourceErr := e.isAbsent(*p.Source)
+		if sourceErr != nil {
+			return Ambiguous, sourceErr
+		}
+		targetAfter, targetErr := e.matchesDigest(p.Target, p.ExpectedDigest)
+		if targetErr != nil {
+			return Ambiguous, targetErr
+		}
+		if sourceBefore && beforeTarget {
+			return Before, nil
+		}
+		if sourceAbsent && targetAfter {
+			return After, nil
+		}
+		return Ambiguous, nil
+	}
+	if p.Kind == ast.Delete {
+		absent, absentErr := e.isAbsent(p.Target)
+		if absentErr != nil {
+			return Ambiguous, absentErr
+		}
+		if beforeTarget {
+			return Before, nil
+		}
+		if absent {
+			return After, nil
+		}
+		return Ambiguous, nil
+	}
+	afterTarget, err := e.matchesDigest(p.Target, p.ExpectedDigest)
+	if err != nil {
+		return Ambiguous, err
+	}
+	if beforeTarget {
+		return Before, nil
+	}
+	if afterTarget {
+		return After, nil
+	}
+	return Ambiguous, nil
+}
+
+func (e *Engine) matchesBackup(path pathcap.ResolvedPath, backup Backup) (bool, error) {
+	if !backup.Present {
+		return e.isAbsent(path)
+	}
+	return e.matchesDigest(path, backup.Digest)
+}
+
+func (e *Engine) matchesDigest(path pathcap.ResolvedPath, want string) (bool, error) {
+	if want == "" {
+		return false, nil
+	}
+	digest, _, _, _, _, err := e.digest(path, false)
+	if errors.Is(err, fs.ErrNotExist) {
+		return false, nil
+	}
+	return digest == want, err
+}
+
+func (e *Engine) isAbsent(path pathcap.ResolvedPath) (bool, error) {
+	_, err := e.Capabilities.Lstat(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return true, nil
+	}
+	return false, err
+}
+
+// CleanupTemporaries removes only deterministic names recorded or derived for
+// this operation. It never scans or removes arbitrary similarly named files.
+func (e *Engine) CleanupTemporaries(p Prepared) error {
+	var errs []error
+	remove := func(path pathcap.ResolvedPath, rel string) {
+		if rel == "" {
+			return
+		}
+		root, err := e.Capabilities.Handle(path.RootID)
+		if err == nil {
+			err = root.RemoveAll(rel)
+		}
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			errs = append(errs, err)
+		}
+	}
+	remove(p.Target, p.Temporary)
+	remove(p.Target, recoveryTemporary(p.Target.Relative, p.OperationID+"-target"))
+	if p.Source != nil {
+		remove(*p.Source, recoveryTemporary(p.Source.Relative, p.OperationID+"-source"))
+	}
+	return errors.Join(errs...)
 }

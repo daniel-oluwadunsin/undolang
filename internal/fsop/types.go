@@ -60,4 +60,13 @@ type Prepared struct {
 	Method         string                 `json:"method,omitempty"`
 	ExpectedDigest string                 `json:"expected_digest,omitempty"`
 	MatchCount     int64                  `json:"match_count,omitempty"`
+	Temporary      string                 `json:"temporary,omitempty"`
 }
+
+type Disposition string
+
+const (
+	Before    Disposition = "before"
+	After     Disposition = "after"
+	Ambiguous Disposition = "ambiguous"
+)

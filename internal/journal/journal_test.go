@@ -43,6 +43,8 @@ func basicRecords() []struct {
 		payload Payload
 	}{
 		{TXBegin, Payload{TransactionID: "tx", State: "PLANNED"}},
+		{TXState, Payload{TransactionID: "tx", State: "PREPARED"}},
+		{TXState, Payload{TransactionID: "tx", State: "RUNNING"}},
 		{OPPrepared, Payload{TransactionID: "tx", OperationID: "1"}},
 		{OPApplied, Payload{TransactionID: "tx", OperationID: "1"}},
 	}
@@ -63,7 +65,7 @@ func TestRoundTripAndOpenAppend(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = appender.Append(TXBegin, Payload{TransactionID: "tx"}); err != nil {
+	if _, err = appender.Append(TXBegin, Payload{TransactionID: "tx", State: "PLANNED"}); err != nil {
 		t.Fatal(err)
 	}
 	if err = appender.Close(); err != nil {

@@ -224,11 +224,7 @@ func TestStreamingReplaceBoundariesNoopAndUndo(t *testing.T) {
 	}
 
 	missing := ast.Statement{Kind: ast.Replace, Path: "replace", Old: "absent", New: "x"}
-	p, err := f.engine.Prepare("replace-missing", missing)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = f.engine.Apply(&p, missing)
+	_, err := f.engine.Prepare("replace-missing", missing)
 	var opErr *Error
 	if !errors.As(err, &opErr) || opErr.Code != ReplacePatternNotFound {
 		t.Fatalf("missing-pattern error = %v", err)

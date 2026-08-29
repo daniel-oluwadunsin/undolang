@@ -152,6 +152,10 @@ type Replay struct {
 	Records       []Record
 	TornTail      bool
 	TransactionID string
+	ValidBytes    int64
+	State         string
+	Committed     bool
+	RolledBack    bool
 }
 
 func Decode(r io.Reader) (Replay, error) {
@@ -160,6 +164,8 @@ func Decode(r io.Reader) (Replay, error) {
 	prepared := map[string]bool{}
 	applied := map[string]bool{}
 	rollbackPrepared := map[string]bool{}
+	rollbackApplied := map[string]bool{}
+	state := ""
 	for {
 		header := make([]byte, headerSize)
 		n, err := io.ReadFull(r, header)
@@ -230,15 +236,20 @@ func Decode(r io.Reader) (Replay, error) {
 		} else if payload.TransactionID != result.TransactionID {
 			return Replay{}, fmt.Errorf("%w: transaction id mismatch", ErrCorrupt)
 		}
-		if err = validateReference(kind, payload.OperationID, prepared, applied, rollbackPrepared); err != nil {
+		if err = validateReference(kind, payload.OperationID, prepared, applied, rollbackPrepared, rollbackApplied); err != nil {
+			return Replay{}, err
+		}
+		if err = validateSemantics(kind, payload, &state, rollbackApplied, &result); err != nil {
 			return Replay{}, err
 		}
 		result.Records = append(result.Records, Record{Type: kind, Sequence: sequence, Payload: append([]byte(nil), body[:length]...)})
+		result.ValidBytes += int64(headerSize + len(body))
+		result.State = state
 		expected++
 	}
 }
 
-func validateReference(kind Type, id string, prepared, applied, rollbackPrepared map[string]bool) error {
+func validateReference(kind Type, id string, prepared, applied, rollbackPrepared, rollbackApplied map[string]bool) error {
 	switch kind {
 	case OPPrepared:
 		if id == "" || prepared[id] {
@@ -251,14 +262,106 @@ func validateReference(kind Type, id string, prepared, applied, rollbackPrepared
 		}
 		applied[id] = true
 	case RollbackPrepared:
-		if !applied[id] || rollbackPrepared[id] {
-			return fmt.Errorf("%w: rollback lacks applied operation", ErrCorrupt)
+		if !prepared[id] || rollbackPrepared[id] {
+			return fmt.Errorf("%w: rollback lacks prepared operation", ErrCorrupt)
 		}
 		rollbackPrepared[id] = true
 	case RollbackApplied:
-		if !rollbackPrepared[id] {
+		if !rollbackPrepared[id] || rollbackApplied[id] {
 			return fmt.Errorf("%w: rollback applied lacks preparation", ErrCorrupt)
 		}
+		rollbackApplied[id] = true
 	}
 	return nil
+}
+
+func validateSemantics(kind Type, payload Payload, state *string, rollbackApplied map[string]bool, result *Replay) error {
+	if result.Committed || result.RolledBack {
+		if kind != TXState {
+			return fmt.Errorf("%w: record follows terminal marker", ErrCorrupt)
+		}
+	}
+	switch kind {
+	case TXBegin:
+		if *state != "" || payload.State != "PLANNED" {
+			return fmt.Errorf("%w: invalid transaction begin state", ErrCorrupt)
+		}
+		*state = payload.State
+	case TXState:
+		if !validTransition(*state, payload.State) {
+			return fmt.Errorf("%w: invalid state transition %s -> %s", ErrCorrupt, *state, payload.State)
+		}
+		if result.Committed && payload.State != "COMMITTED" {
+			return fmt.Errorf("%w: commit marker not followed by COMMITTED", ErrCorrupt)
+		}
+		if result.RolledBack && payload.State != "ROLLED_BACK" {
+			return fmt.Errorf("%w: rollback marker not followed by ROLLED_BACK", ErrCorrupt)
+		}
+		*state = payload.State
+	case OPPrepared, OPApplied:
+		if *state != "RUNNING" {
+			return fmt.Errorf("%w: operation record outside RUNNING", ErrCorrupt)
+		}
+	case AssertResult:
+		if *state != "VERIFYING" {
+			return fmt.Errorf("%w: assertion record outside VERIFYING", ErrCorrupt)
+		}
+	case RollbackPrepared, RollbackApplied:
+		if *state != "ROLLING_BACK" {
+			return fmt.Errorf("%w: rollback record outside ROLLING_BACK", ErrCorrupt)
+		}
+	case TXCommit:
+		if *state != "COMMITTING" || result.Committed {
+			return fmt.Errorf("%w: invalid commit marker", ErrCorrupt)
+		}
+		result.Committed = true
+	case TXRollbackComplete:
+		if *state != "ROLLING_BACK" || result.RolledBack {
+			return fmt.Errorf("%w: invalid rollback completion", ErrCorrupt)
+		}
+		result.RolledBack = true
+	}
+	return nil
+}
+
+func validTransition(from, to string) bool {
+	allowed := map[string]map[string]bool{
+		"PLANNED":           {"PREPARED": true, "ROLLING_BACK": true, "RECOVERY_REQUIRED": true},
+		"PREPARED":          {"RUNNING": true, "ROLLING_BACK": true, "RECOVERY_REQUIRED": true},
+		"RUNNING":           {"VERIFYING": true, "ROLLING_BACK": true, "RECOVERY_REQUIRED": true},
+		"VERIFYING":         {"COMMITTING": true, "ROLLING_BACK": true, "RECOVERY_REQUIRED": true},
+		"COMMITTING":        {"COMMITTED": true, "ROLLING_BACK": true, "RECOVERY_REQUIRED": true},
+		"ROLLING_BACK":      {"ROLLED_BACK": true, "RECOVERY_FAILED": true},
+		"RECOVERY_REQUIRED": {"ROLLING_BACK": true, "RECOVERY_FAILED": true},
+		"RECOVERY_FAILED":   {"ROLLING_BACK": true},
+	}
+	return allowed[from][to]
+}
+
+// OpenAppendRecovery validates a journal and, only for an incomplete final
+// frame, truncates it to the last verified byte before reopening for append.
+func OpenAppendRecovery(path string) (*Appender, Replay, error) {
+	file, err := os.OpenFile(path, os.O_RDWR, 0o600)
+	if err != nil {
+		return nil, Replay{}, err
+	}
+	replay, err := Decode(file)
+	if err != nil {
+		file.Close()
+		return nil, Replay{}, err
+	}
+	if replay.TornTail {
+		if err = file.Truncate(replay.ValidBytes); err == nil {
+			err = file.Sync()
+		}
+		if err != nil {
+			file.Close()
+			return nil, Replay{}, err
+		}
+	}
+	if _, err = file.Seek(0, io.SeekEnd); err != nil {
+		file.Close()
+		return nil, Replay{}, err
+	}
+	return &Appender{file: file, next: uint64(len(replay.Records) + 1)}, replay, nil
 }
