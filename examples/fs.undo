@@ -2,16 +2,6 @@
 # --transaction NAME, or run this file from a clean root to see fail-fast:
 # seed-fixture and first-commits commit, second-fails stops the later entries.
 
-
-transaction "<transaction_name>" {
-  <pre-condition>
-  <mutation1> mkdir/copy/move/write/replace/delete
-  <mutation2>
-  <mutation3>
-  <mutation....>
-  <post-condition> assert
-}
-
 transaction "seed-fixture" {
   mkdir "input"
   write "input/app-v1.txt" = "application version 1\n"
