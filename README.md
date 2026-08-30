@@ -18,12 +18,12 @@ UndoLang is a Track F project because it is a useful systems tool that normally 
 
 ### How the submission maps to the judging rubric
 
-| Judging dimension | What this repository demonstrates |
-| --- | --- |
+| Judging dimension                    | What this repository demonstrates                                                                                                                                                                               |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Functionality & Usefulness (35%)** | A runnable language and CLI for real multi-file migrations, upgrades, cleanup, and agent-reviewed filesystem work; six reversible operations; planning, execution, rollback, recovery, history, and inspection. |
-| **Zero-Dependency Craft (30%)** | Go 1.27 standard library only, an empty `go.mod` dependency graph, a concrete [`STDLIB.md`](STDLIB.md) substitution ledger, offline tests, dependency proof, and no runtime shell-outs. |
-| **Code Quality & Idiom (25%)** | Small ownership-focused packages, bounded streaming algorithms, explicit state machines, capability-root enforcement, defensive parsing, durable sync points, fuzz tests, race tests, and fail-closed recovery. |
-| **Innovation (10%)** | A constrained filesystem programming language that makes rollback intent, preconditions, postconditions, and crash recovery inspectable without a workflow framework or database. |
+| **Zero-Dependency Craft (30%)**      | Go 1.27 standard library only, an empty `go.mod` dependency graph, a concrete [`STDLIB.md`](STDLIB.md) substitution ledger, offline tests, dependency proof, and no runtime shell-outs.                         |
+| **Code Quality & Idiom (25%)**       | Small ownership-focused packages, bounded streaming algorithms, explicit state machines, capability-root enforcement, defensive parsing, durable sync points, fuzz tests, race tests, and fail-closed recovery. |
+| **Innovation (10%)**                 | A constrained filesystem programming language that makes rollback intent, preconditions, postconditions, and crash recovery inspectable without a workflow framework or database.                               |
 
 The repository also supplies the **Reproducible Build** and **STDLIB Log** bonus evidence: `make reproducible-build` prints two byte-identity hashes, and `STDLIB.md` documents more than ten real package-to-standard-library substitutions.
 
@@ -87,14 +87,14 @@ If `mkdir`, `copy`, `write`, `replace`, or `delete` fails—or either assertion 
 
 ### Operations
 
-| Instruction | Form | Meaning | Reversibility |
-| --- | --- | --- | --- |
-| `mkdir` | `mkdir PATH` | Create a directory and any missing parent directories, recording exactly what this transaction created. | Removes only directories created by the operation, in safe reverse order. |
-| `copy` | `copy SOURCE -> TARGET [overwrite]` | Copy a regular file or recursively copy a directory tree. Symlink copying is rejected. | Removes the created destination or restores a backed-up destination when `overwrite` is present. |
-| `move` | `move SOURCE -> TARGET [overwrite]` | Rename within a capability, or use a verified copy/sync/delete fallback for explicitly recognized cross-device cases. | Moves the entry back or restores the overwritten destination. |
-| `write` | `write PATH = STRING` | Write a complete file through a root-safe temporary file, sync, and replacement protocol. | Restores the previous entry or removes a newly created file. |
-| `replace` | `replace PATH OLD -> NEW` | Literal, non-overlapping, streaming replacement across chunk boundaries. | Restores the original file bytes and mode. |
-| `delete` | `delete PATH` | Delete a regular file, directory tree, or symlink entry itself. | Restores the backed-up entry. |
+| Instruction | Form                                | Meaning                                                                                                               | Reversibility                                                                                    |
+| ----------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `mkdir`     | `mkdir PATH`                        | Create a directory and any missing parent directories, recording exactly what this transaction created.               | Removes only directories created by the operation, in safe reverse order.                        |
+| `copy`      | `copy SOURCE -> TARGET [overwrite]` | Copy a regular file or recursively copy a directory tree. Symlink copying is rejected.                                | Removes the created destination or restores a backed-up destination when `overwrite` is present. |
+| `move`      | `move SOURCE -> TARGET [overwrite]` | Rename within a capability, or use a verified copy/sync/delete fallback for explicitly recognized cross-device cases. | Moves the entry back or restores the overwritten destination.                                    |
+| `write`     | `write PATH = STRING`               | Write a complete file through a root-safe temporary file, sync, and replacement protocol.                             | Restores the previous entry or removes a newly created file.                                     |
+| `replace`   | `replace PATH OLD -> NEW`           | Literal, non-overlapping, streaming replacement across chunk boundaries.                                              | Restores the original file bytes and mode.                                                       |
+| `delete`    | `delete PATH`                       | Delete a regular file, directory tree, or symlink entry itself.                                                       | Restores the backed-up entry.                                                                    |
 
 Destination parents must already exist for `copy`, `move`, `write`, and `replace`; `mkdir` is the explicit parent-chain operation. `overwrite` means replace the complete destination entry after backing it up—it never silently merges directory trees.
 
@@ -200,18 +200,18 @@ PLANNED -> PREPARED -> RUNNING -> VERIFYING -> COMMITTING -> COMMITTED
 
 Build `undo` and use `undo --help` for the full command surface:
 
-| Command | Purpose | Mutates targets? |
-| --- | --- | --- |
-| `check FILE` | Parse, validate, and validate paths/capabilities. | No |
-| `plan FILE` | Show exact or deferred effects, conflicts, readiness, and rollback estimates. | No |
-| `run FILE` | Execute all transactions in source order, or one with `--transaction NAME`. | Yes, with journal and rollback |
-| `recover` | Reconcile and roll back unresolved durable state. | Yes, only as recovery |
-| `history` | List local transaction metadata, newest first. | No |
-| `inspect TXID` | Validate and inspect metadata, journal records, operations, and backup retention. | No |
-| `capabilities` | Describe supported operations, path model, and recovery classifications. | No |
-| `schema` | Print the versioned language and workflow schema. | No |
-| `agent-guide` | Print the machine-agent workflow and approval rules. | No |
-| `version` | Print deterministic product, DSL, API, and Go version information. | No |
+| Command        | Purpose                                                                           | Mutates targets?               |
+| -------------- | --------------------------------------------------------------------------------- | ------------------------------ |
+| `check FILE`   | Parse, validate, and validate paths/capabilities.                                 | No                             |
+| `plan FILE`    | Show exact or deferred effects, conflicts, readiness, and rollback estimates.     | No                             |
+| `run FILE`     | Execute all transactions in source order, or one with `--transaction NAME`.       | Yes, with journal and rollback |
+| `recover`      | Reconcile and roll back unresolved durable state.                                 | Yes, only as recovery          |
+| `history`      | List local transaction metadata, newest first.                                    | No                             |
+| `inspect TXID` | Validate and inspect metadata, journal records, operations, and backup retention. | No                             |
+| `capabilities` | Describe supported operations, path model, and recovery classifications.          | No                             |
+| `schema`       | Print the versioned language and workflow schema.                                 | No                             |
+| `agent-guide`  | Print the machine-agent workflow and approval rules.                              | No                             |
+| `version`      | Print deterministic product, DSL, API, and Go version information.                | No                             |
 
 Common options are `--root DIR`, repeatable `--allow-path DIR`, `--transaction NAME`, `--json`, and `--no-color`. Mutating commands require explicit `--yes` in noninteractive or JSON use. Interactive `run` summarizes the complete declared program and asks for confirmation when stdin and stdout are terminals. `--json` never grants approval and never mixes progress prose into stdout.
 
@@ -221,16 +221,16 @@ JSON responses use API version `undo-cli/1`, stable result fields, ordered trans
 
 Exit classes are stable and documented in `undo schema --json`:
 
-| Exit | Class |
-| ---: | --- |
-| 0 | Success |
-| 1 | Usage, language, approval, or cancellation |
-| 2 | Unsafe plan or failed precondition |
-| 3 | Path, conflict, permission, or no-space failure |
-| 4 | Transaction failed but rollback succeeded |
-| 5 | Recovery required |
-| 6 | Rollback, recovery, or journal-integrity failure |
-| 7 | Internal invariant failure |
+| Exit | Class                                            |
+| ---: | ------------------------------------------------ |
+|    0 | Success                                          |
+|    1 | Usage, language, approval, or cancellation       |
+|    2 | Unsafe plan or failed precondition               |
+|    3 | Path, conflict, permission, or no-space failure  |
+|    4 | Transaction failed but rollback succeeded        |
+|    5 | Recovery required                                |
+|    6 | Rollback, recovery, or journal-integrity failure |
+|    7 | Internal invariant failure                       |
 
 For an agent, the safest workflow is:
 
@@ -323,24 +323,24 @@ See [`deps-proof.txt`](deps-proof.txt), [`docs/deps-proof.txt`](docs/deps-proof.
 
 UndoLang is split into small ownership layers so the safety story can be reviewed independently:
 
-| Package | Responsibility |
-| --- | --- |
-| `cmd/undo` | Minimal executable entrypoint. |
-| `internal/cli` | Stdlib flag dispatch, approvals, human/JSON output, and exit classes. |
-| `internal/lang/token`, `lexer`, `parser`, `ast`, `validate` | Tokens/spans, UTF-8 lexing, grammar, AST, diagnostics, and semantic validation. |
-| `internal/pathcap` | Capability roots, safe path mapping, `os.Root` access, reserved-state and symlink policy. |
-| `internal/condition` | Bounded-memory exists/type/contains/SHA-256 evaluation. |
-| `internal/plan` | Immutable plans, symbolic overlays, conflict detection, effects, readiness, and rollback estimates. |
-| `internal/streamutil` | Bounded copy, streaming search, hash, and literal replacement. |
-| `internal/fsop` | Prepare/apply/verify/undo primitives, backups, tree traversal, and supported file-type policy. |
-| `internal/journal` | Framed append/sync, CRC32C, bounded decoding, torn-tail handling, and replay validation. |
-| `internal/state` | `.undo` layout, UUIDv7 metadata, lock lifecycle, statuses, history, and inspection. |
-| `internal/txn` | One transaction’s durable lifecycle and operation sequencing. |
-| `internal/program` | Source-order selection, fail-fast execution, and skipped results. |
-| `internal/recovery` | Fresh-process journal replay and restartable reverse rollback. |
-| `internal/report` | Versioned JSON envelopes and stable error models. |
-| `marketing/` | Static site with no package manifest or external runtime assets. |
-| `tools/buildproof` | Standard-library streaming hash helper for release evidence. |
+| Package                                                     | Responsibility                                                                                      |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `cmd/undo`                                                  | Minimal executable entrypoint.                                                                      |
+| `internal/cli`                                              | Stdlib flag dispatch, approvals, human/JSON output, and exit classes.                               |
+| `internal/lang/token`, `lexer`, `parser`, `ast`, `validate` | Tokens/spans, UTF-8 lexing, grammar, AST, diagnostics, and semantic validation.                     |
+| `internal/pathcap`                                          | Capability roots, safe path mapping, `os.Root` access, reserved-state and symlink policy.           |
+| `internal/condition`                                        | Bounded-memory exists/type/contains/SHA-256 evaluation.                                             |
+| `internal/plan`                                             | Immutable plans, symbolic overlays, conflict detection, effects, readiness, and rollback estimates. |
+| `internal/streamutil`                                       | Bounded copy, streaming search, hash, and literal replacement.                                      |
+| `internal/fsop`                                             | Prepare/apply/verify/undo primitives, backups, tree traversal, and supported file-type policy.      |
+| `internal/journal`                                          | Framed append/sync, CRC32C, bounded decoding, torn-tail handling, and replay validation.            |
+| `internal/state`                                            | `.undo` layout, UUIDv7 metadata, lock lifecycle, statuses, history, and inspection.                 |
+| `internal/txn`                                              | One transaction’s durable lifecycle and operation sequencing.                                       |
+| `internal/program`                                          | Source-order selection, fail-fast execution, and skipped results.                                   |
+| `internal/recovery`                                         | Fresh-process journal replay and restartable reverse rollback.                                      |
+| `internal/report`                                           | Versioned JSON envelopes and stable error models.                                                   |
+| `marketing/`                                                | Static site with no package manifest or external runtime assets.                                    |
+| `tools/buildproof`                                          | Standard-library streaming hash helper for release evidence.                                        |
 
 ## Verification and evidence
 
@@ -355,35 +355,7 @@ The repository includes table-driven and integration coverage for:
 - compiled-binary CLI behavior, JSON purity, approvals, exit codes, history, inspect, examples, and documentation snippets;
 - race detection, opt-in large-file/tree stress checks, dependency proof, reproducible builds, and Linux/macOS/Windows cross-builds.
 
-Run the practical gates with:
-
-```sh
-make test
-make vet
-make race
-make examples
-make crash-test
-make deps-proof
-make reproducible-build
-make release
-make modules
-```
-
 `go list -m all` is intentionally part of the submission evidence: it must print only the main module.
-
-## Platform support and honest limits
-
-Behavioral evidence is strongest on **macOS arm64**, where the filesystem integration, race detector, stress checks, and real crash/recovery matrix were run. Linux amd64/arm64, Windows amd64, and macOS amd64 are cross-built targets; cross-compilation proves buildability, not equivalent filesystem durability semantics. Windows open-handle, rename, reparse-point, and directory-sync behavior require validation on a real Windows host.
-
-UndoLang deliberately does not claim:
-
-- isolation from external readers or writers, or universal atomic visibility;
-- preservation of ACLs, ownership, xattrs, resource forks, alternate data streams, sparse allocation, timestamps, or hard-link identity;
-- copying or mutating FIFOs, sockets, devices, unsafe reparse points, or symlink targets through implicit dereference;
-- post-commit undo, automatic continuation of later program transactions after failure, or silent repair of corrupt journals;
-- protection against an external actor that changes a file after planning and before the runtime’s final verification—the runtime revalidates and fails closed where it cannot prove the expected state.
-
-These are product boundaries, not hidden dependencies or untested promises. The full support qualification is in [`docs/SUPPORT_MATRIX.md`](docs/SUPPORT_MATRIX.md), and the implementation decisions are in [`docs/IMPLEMENTATION_REPORT.md`](docs/IMPLEMENTATION_REPORT.md).
 
 ## Documentation and agent context
 
