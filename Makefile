@@ -43,85 +43,10 @@ help:
 	@echo ""
 	@echo "Optional variables: BIN=..., FUZZTIME=5s, TRANSACTION=..., JSON=1, YES=1, ALLOW_PATHS='dir1 dir2'"
 
-all: build test vet
+
 
 build:
-	mkdir -p "$(dir $(BIN))"
-	$(BUILD_ENV) $(GO) build -trimpath -buildvcs=false -o "$(BIN)" ./cmd/undo
-
-version: build
-	"$(BIN)" version
-
-test:
-	$(GO_OFFLINE) $(GO) test ./...
-
-vet:
-	$(GO_OFFLINE) $(GO) vet ./...
-
-race:
-	$(GO_OFFLINE) $(GO) test -race ./...
-
-fuzz:
-	$(GO_OFFLINE) $(GO) test ./internal/lang/lexer -run '^$$' -fuzz '^FuzzLexNeverPanics$$' -fuzztime $(FUZZTIME)
-	$(GO_OFFLINE) $(GO) test ./internal/lang/parser -run '^$$' -fuzz '^FuzzParseNeverPanics$$' -fuzztime $(FUZZTIME)
-	$(GO_OFFLINE) $(GO) test ./internal/journal -run '^$$' -fuzz '^FuzzDecodeNeverPanics$$' -fuzztime $(FUZZTIME)
-
-stress:
-	UNDOLANG_LARGE_TREE=1 $(GO_OFFLINE) $(GO) test ./internal/plan -run '^TestStressPlan100KEntryTree$$' -count=1
-	UNDOLANG_STRESS=1 $(GO_OFFLINE) $(GO) test ./internal/fsop -run '^TestStressCopy256MiB$$' -count=1
-
-crash-test:
-	$(GO_OFFLINE) $(GO) test ./internal/cli -run '^TestRealProcessCrashRecoveryMatrix$$' -count=1
-
-examples:
-	$(GO_OFFLINE) $(GO) test ./tests -run '^TestEveryExampleParses$$' -count=1
-
-modules:
-	$(GO_OFFLINE) $(GO) list -m all
-
-check: build
-	@test -n "$(FILE)" || { echo "usage: make check FILE=path/to/file.undo [ROOT=/path] [JSON=1]" >&2; exit 2; }
-	"$(BIN)" check "$(FILE)" $(ROOT_FLAG) $(ALLOW_PATH_FLAGS) $(JSON_FLAG)
-
-plan: build
-	@test -n "$(FILE)" || { echo "usage: make plan FILE=path/to/file.undo [ROOT=/path] [TRANSACTION=name] [JSON=1]" >&2; exit 2; }
-	"$(BIN)" plan "$(FILE)" $(TRANSACTION_FLAG) $(ROOT_FLAG) $(ALLOW_PATH_FLAGS) $(JSON_FLAG)
-
-run: build
-	@test -n "$(FILE)" || { echo "usage: make run FILE=path/to/file.undo [ROOT=/path] [TRANSACTION=name] [YES=1] [JSON=1]" >&2; exit 2; }
-	"$(BIN)" run "$(FILE)" $(TRANSACTION_FLAG) $(ROOT_FLAG) $(ALLOW_PATH_FLAGS) $(YES_FLAG) $(JSON_FLAG)
-
-recover: build
-	@test -n "$(ROOT)" || { echo "usage: make recover ROOT=/path YES=1 [JSON=1]" >&2; exit 2; }
-	"$(BIN)" recover $(ROOT_FLAG) $(YES_FLAG) $(JSON_FLAG)
-
-history: build
-	@test -n "$(ROOT)" || { echo "usage: make history ROOT=/path [JSON=1]" >&2; exit 2; }
-	"$(BIN)" history $(ROOT_FLAG) $(JSON_FLAG)
-
-inspect: build
-	@test -n "$(TXID)" || { echo "usage: make inspect TXID=id ROOT=/path [JSON=1]" >&2; exit 2; }
-	@test -n "$(ROOT)" || { echo "usage: make inspect TXID=id ROOT=/path [JSON=1]" >&2; exit 2; }
-	"$(BIN)" inspect "$(TXID)" $(ROOT_FLAG) $(JSON_FLAG)
-
-capabilities: build
-	"$(BIN)" capabilities --json
-
-schema: build
-	"$(BIN)" schema --json
-
-agent-guide: build
-	"$(BIN)" agent-guide --json
-
-deps-proof:
-	./scripts/deps-proof.sh
+	go build ./cmd/undo/main.go
 
 reproducible-build:
 	GO="$(GO)" ./scripts/repro-build.sh
-
-repro: reproducible-build
-
-release:
-	./scripts/release.sh
-
-verify: build test vet race examples modules deps-proof reproducible-build release

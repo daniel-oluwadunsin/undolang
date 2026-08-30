@@ -37,30 +37,30 @@ small `.undo` DSL. The release includes:
 
 ## Architecture and package map
 
-| Package | Responsibility |
-|---|---|
-| `cmd/undo` | Minimal executable entrypoint. |
-| `internal/buildinfo` | Deterministic product, DSL, and JSON API versions. |
-| `internal/cli` | Stdlib `flag` dispatch, approvals, command behavior, human/JSON errors, and exit classes. |
-| `internal/lang/token` | Token kinds and byte/line/column spans. |
-| `internal/lang/lexer` | UTF-8, comments, quoted/raw strings, escapes, and lexical diagnostics. |
-| `internal/lang/ast` | Clean domain syntax types. |
-| `internal/lang/parser` | Recursive-descent grammar and ordered transactions. |
-| `internal/lang/validate` | Transaction uniqueness, phase order, argument, hash, and path-shape validation. |
-| `internal/lang/frontend` / `internal/lang/diag` | Source loading boundary and stable diagnostics. |
-| `internal/pathcap` | Canonical capability roots, `os.Root` mapping, and reserved/escape policy. |
-| `internal/condition` | Safe condition evaluation and streaming file reads. |
-| `internal/plan` | Static conflict analysis, exact/deferred plans, effects, warnings, and rollback estimates. |
-| `internal/program` | Source-order selection, fail-fast orchestration, and skipped results. |
-| `internal/streamutil` | Bounded-buffer copy, contains, SHA-256, and literal replace helpers. |
-| `internal/fsop` | Real filesystem prepare/apply/verify/inverse primitives and supported object policy. |
-| `internal/journal` | Framed append/sync, CRC32C, bounded decode, and semantic replay. |
-| `internal/state` | `.undo` layout, UUIDv7 metadata, lock lifecycle, statuses, and history. |
-| `internal/txn` | One transaction's durable lifecycle and operation sequencing. |
-| `internal/recovery` | Fresh-process journal replay, reverse rollback, and fail-closed recovery. |
-| `internal/report` | Stable JSON envelope/error/result models. |
-| `marketing` | Static site; no package manifest or external runtime asset. |
-| `tools/buildproof` | Stdlib-only streaming SHA-256 and byte-identity receipt helper. |
+| Package                                         | Responsibility                                                                             |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `cmd/undo`                                      | Minimal executable entrypoint.                                                             |
+| `internal/buildinfo`                            | Deterministic product, DSL, and JSON API versions.                                         |
+| `internal/cli`                                  | Stdlib `flag` dispatch, approvals, command behavior, human/JSON errors, and exit classes.  |
+| `internal/lang/token`                           | Token kinds and byte/line/column spans.                                                    |
+| `internal/lang/lexer`                           | UTF-8, comments, quoted/raw strings, escapes, and lexical diagnostics.                     |
+| `internal/lang/ast`                             | Clean domain syntax types.                                                                 |
+| `internal/lang/parser`                          | Recursive-descent grammar and ordered transactions.                                        |
+| `internal/lang/validate`                        | Transaction uniqueness, phase order, argument, hash, and path-shape validation.            |
+| `internal/lang/frontend` / `internal/lang/diag` | Source loading boundary and stable diagnostics.                                            |
+| `internal/pathcap`                              | Canonical capability roots, `os.Root` mapping, and reserved/escape policy.                 |
+| `internal/condition`                            | Safe condition evaluation and streaming file reads.                                        |
+| `internal/plan`                                 | Static conflict analysis, exact/deferred plans, effects, warnings, and rollback estimates. |
+| `internal/program`                              | Source-order selection, fail-fast orchestration, and skipped results.                      |
+| `internal/streamutil`                           | Bounded-buffer copy, contains, SHA-256, and literal replace helpers.                       |
+| `internal/fsop`                                 | Real filesystem prepare/apply/verify/inverse primitives and supported object policy.       |
+| `internal/journal`                              | Framed append/sync, CRC32C, bounded decode, and semantic replay.                           |
+| `internal/state`                                | `.undo` layout, UUIDv7 metadata, lock lifecycle, statuses, and history.                    |
+| `internal/txn`                                  | One transaction's durable lifecycle and operation sequencing.                              |
+| `internal/recovery`                             | Fresh-process journal replay, reverse rollback, and fail-closed recovery.                  |
+| `internal/report`                               | Stable JSON envelope/error/result models.                                                  |
+| `marketing`                                     | Static site; no package manifest or external runtime asset.                                |
+| `tools/buildproof`                              | Stdlib-only streaming SHA-256 and byte-identity receipt helper.                            |
 
 ## Required local toolchain and environment
 
@@ -208,25 +208,21 @@ The agent must not infer approval from JSON and must not delete retained
 
 Fresh evidence from this checkout on macOS arm64, Go 1.27.0:
 
-| Command | Result |
-|---|---|
-| `GOPROXY=off GOTOOLCHAIN=go1.27.0 go test ./...` | PASS |
-| `GOPROXY=off GOTOOLCHAIN=go1.27.0 go vet ./...` | PASS |
-| `GOPROXY=off GOTOOLCHAIN=go1.27.0 go test -race ./...` | PASS |
-| `UNDOLANG_LARGE_TREE=1 ... go test ./internal/plan -run '^TestStressPlan100KEntryTree$' -count=1` | PASS, 23.589s |
-| `UNDOLANG_STRESS=1 ... go test ./internal/fsop -run '^TestStressCopy256MiB$' -count=1` | PASS, 2.260s |
-| lexer/parser/journal `-fuzz` runs, 5s each | PASS; 142,471 / 73,804 / 279,128 executions reported |
-| `go test ./internal/cli -run '^TestRealProcessCrashRecoveryMatrix$' -count=1` | PASS, 9 real kill/recover checkpoints, 5.767s |
-| `examples/fs.undo` with real `check`/`plan` fixtures | PASS; one program with selectable success and failure transactions |
-| `./scripts/deps-proof.sh` | PASS; offline tests and build |
-| `make reproducible-build` (`./scripts/repro-build.sh`) | PASS; labeled identical A/B SHA-256; reuses installer toolchain when needed |
-| `./scripts/release.sh` | PASS; five cross-builds |
-| `GOTOOLCHAIN=go1.27.0 GOPROXY=off go list -m all` | one line: main module only |
-| `make verify` | PASS; build, offline tests, vet, race, example parsing, dependency proof, reproducibility, and release cross-builds |
-| `make fuzz` | PASS; lexer, parser, and journal fuzz targets with 5-second budgets |
-| `make stress` | PASS; 100k-entry planner and 256 MiB streaming-copy checks |
-| `make crash-test` | PASS; real process-kill/recovery matrix |
-| `TESTING.md` temporary-root flow | PASS; check, plan, whole-file run, selected run, JSON commands, history/inspect, and real assertion rollback |
+| Command                                                                                           | Result                                                                                                       |
+| ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `GOPROXY=off GOTOOLCHAIN=go1.27.0 go test ./...`                                                  | PASS                                                                                                         |
+| `GOPROXY=off GOTOOLCHAIN=go1.27.0 go vet ./...`                                                   | PASS                                                                                                         |
+| `GOPROXY=off GOTOOLCHAIN=go1.27.0 go test -race ./...`                                            | PASS                                                                                                         |
+| `UNDOLANG_LARGE_TREE=1 ... go test ./internal/plan -run '^TestStressPlan100KEntryTree$' -count=1` | PASS, 23.589s                                                                                                |
+| `UNDOLANG_STRESS=1 ... go test ./internal/fsop -run '^TestStressCopy256MiB$' -count=1`            | PASS, 2.260s                                                                                                 |
+| lexer/parser/journal `-fuzz` runs, 5s each                                                        | PASS; 142,471 / 73,804 / 279,128 executions reported                                                         |
+| `go test ./internal/cli -run '^TestRealProcessCrashRecoveryMatrix$' -count=1`                     | PASS, 9 real kill/recover checkpoints, 5.767s                                                                |
+| `examples/fs.undo` with real `check`/`plan` fixtures                                              | PASS; one program with selectable success and failure transactions                                           |
+| `./scripts/deps-proof.sh`                                                                         | PASS; offline tests and build                                                                                |
+| `make reproducible-build` (`./scripts/repro-build.sh`)                                            | PASS; labeled identical A/B SHA-256; reuses installer toolchain when needed                                  |
+| `./scripts/release.sh`                                                                            | PASS; five cross-builds                                                                                      |
+| `GOTOOLCHAIN=go1.27.0 GOPROXY=off go list -m all`                                                 | one line: main module only                                                                                   |
+| `TESTING.md` temporary-root flow                                                                  | PASS; check, plan, whole-file run, selected run, JSON commands, history/inspect, and real assertion rollback |
 
 The active fuzz commands were:
 
@@ -270,34 +266,34 @@ reparse-point behavior, Linux filesystem durability, actual cross-device
 
 The PRD acceptance criteria were checked individually:
 
-| # | Criterion | Evidence/status |
-|---:|---|---|
-| 1 | Valid `.undo` parses from any filesystem location | PASS — frontend and script-location/root integration tests. |
-| 2 | Invalid syntax has line/column and stable error code | PASS — lexer/parser diagnostics tests. |
-| 3 | `check` does not mutate targets | PASS — CLI snapshot tests. |
-| 4 | `plan` does not mutate and describes effects | PASS — planner/CLI snapshot and JSON tests. |
-| 5 | Relative paths use transaction root | PASS — path capability tests. |
-| 6 | Absolute paths inside root work | PASS — path capability tests. |
-| 7 | External absolute paths require capability | PASS — denied/allowed path tests. |
-| 8 | `..` and symlink escapes are rejected | PASS — traversal and symlink race-policy tests. |
-| 9 | All six mutations work on real filesystems | PASS — `internal/fsop` integration tests. |
-| 10 | Preconditions prevent mutation | PASS — planner/transaction tests. |
-| 11 | Failed postconditions roll back | PASS — program/transaction integration tests. |
-| 12 | Mid-transaction operation failure rolls back | PASS — operation/program failure tests. |
-| 13 | Real process kill leaves recoverable state | PASS — nine real kill checkpoints. |
-| 14 | `recover` restores prior state | PASS — fresh-process crash/recovery matrix. |
-| 15 | Corrupt non-tail journal fails closed | PASS — CRC/sequence/replay tests. |
-| 16 | Torn final journal record is handled safely | PASS — torn-tail decoder/recovery tests. |
-| 17 | Large-file operations use bounded memory | PASS — streaming implementation and 256 MiB stress test. |
-| 18 | Human and JSON CLIs work | PASS — CLI and compiled-binary contract tests. |
-| 19 | Agent self-description works without project docs | PASS — capabilities/schema/agent-guide tests. |
-| 20 | Tests pass with `GOPROXY=off` | PASS — final offline test gate. |
-| 21 | Module list contains only the main module | PASS — current `go list -m all` receipt. |
-| 22 | Production binary shells out to no executable | PASS — production imports are stdlib/internal only; shelling out appears only in tests/tooling. |
-| 23 | Two canonical builds are byte-identical | PASS — current reproducibility receipt. |
-| 24 | `STDLIB.md` has at least 10 real substitutions | PASS — 15 ledger rows. |
-| 25 | Static marketing/docs site has no third-party runtime dependency | PASS — asset/link/dependency tests. |
-| 26 | README states unsupported/limited semantics honestly | PASS — build, Track F rationale, guarantees, platform limits, and safety limits are documented. |
+|   # | Criterion                                                        | Evidence/status                                                                                 |
+| --: | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+|   1 | Valid `.undo` parses from any filesystem location                | PASS — frontend and script-location/root integration tests.                                     |
+|   2 | Invalid syntax has line/column and stable error code             | PASS — lexer/parser diagnostics tests.                                                          |
+|   3 | `check` does not mutate targets                                  | PASS — CLI snapshot tests.                                                                      |
+|   4 | `plan` does not mutate and describes effects                     | PASS — planner/CLI snapshot and JSON tests.                                                     |
+|   5 | Relative paths use transaction root                              | PASS — path capability tests.                                                                   |
+|   6 | Absolute paths inside root work                                  | PASS — path capability tests.                                                                   |
+|   7 | External absolute paths require capability                       | PASS — denied/allowed path tests.                                                               |
+|   8 | `..` and symlink escapes are rejected                            | PASS — traversal and symlink race-policy tests.                                                 |
+|   9 | All six mutations work on real filesystems                       | PASS — `internal/fsop` integration tests.                                                       |
+|  10 | Preconditions prevent mutation                                   | PASS — planner/transaction tests.                                                               |
+|  11 | Failed postconditions roll back                                  | PASS — program/transaction integration tests.                                                   |
+|  12 | Mid-transaction operation failure rolls back                     | PASS — operation/program failure tests.                                                         |
+|  13 | Real process kill leaves recoverable state                       | PASS — nine real kill checkpoints.                                                              |
+|  14 | `recover` restores prior state                                   | PASS — fresh-process crash/recovery matrix.                                                     |
+|  15 | Corrupt non-tail journal fails closed                            | PASS — CRC/sequence/replay tests.                                                               |
+|  16 | Torn final journal record is handled safely                      | PASS — torn-tail decoder/recovery tests.                                                        |
+|  17 | Large-file operations use bounded memory                         | PASS — streaming implementation and 256 MiB stress test.                                        |
+|  18 | Human and JSON CLIs work                                         | PASS — CLI and compiled-binary contract tests.                                                  |
+|  19 | Agent self-description works without project docs                | PASS — capabilities/schema/agent-guide tests.                                                   |
+|  20 | Tests pass with `GOPROXY=off`                                    | PASS — final offline test gate.                                                                 |
+|  21 | Module list contains only the main module                        | PASS — current `go list -m all` receipt.                                                        |
+|  22 | Production binary shells out to no executable                    | PASS — production imports are stdlib/internal only; shelling out appears only in tests/tooling. |
+|  23 | Two canonical builds are byte-identical                          | PASS — current reproducibility receipt.                                                         |
+|  24 | `STDLIB.md` has at least 10 real substitutions                   | PASS — 15 ledger rows.                                                                          |
+|  25 | Static marketing/docs site has no third-party runtime dependency | PASS — asset/link/dependency tests.                                                             |
+|  26 | README states unsupported/limited semantics honestly             | PASS — build, Track F rationale, guarantees, platform limits, and safety limits are documented. |
 
 Result: **26/26 repository acceptance criteria PASS.**
 

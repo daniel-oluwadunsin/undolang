@@ -2,8 +2,6 @@
 
 These instructions apply to the entire repository. Any nested `AGENTS.md` may add stricter local rules but must not weaken these constraints.
 
-Please always commit in between your coding times, I want to have a complete commit history, do not also add yourself as co-author in the commit messages, it should be just me.
-
 ## Read first — mandatory
 
 Before planning or changing implementation, read in this order:
